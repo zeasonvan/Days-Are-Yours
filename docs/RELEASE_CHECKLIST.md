@@ -1,6 +1,6 @@
 # Release checklist — v1.1.0 (DAYS)
 
-Date: 2026-11-11 · Bundle: `@local/days@1.2.0` · Installed: yes (`application: applied`); old `@local/lifeos` bundle removed, dangling link cleaned
+Date: 2026-11-11 · Bundle: `@local/days@1.3.0` · Installed: yes (`application: applied`); old `@local/lifeos` bundle removed, dangling link cleaned
 
 ## Functional
 
@@ -14,7 +14,8 @@ Date: 2026-11-11 · Bundle: `@local/days@1.2.0` · Installed: yes (`application:
 | 拼假计算器三种排序 | 通过 | 专项测试（预算、边界、不变量） |
 | 月历标记（假/班/假/薪/生） | 通过 | 单元测试（标记计算）+ 类覆盖检查 |
 | 下班 / 发薪倒计时 | 通过 | 单元测试 |
-| 团子 / 指数 / 成就 | 通过 | 单元测试 + 代码走查 |
+| 团子互动 / 指数 / 成就 | 通过 | 单元测试 + 代码走查 |
+| 天气（可选） | 通过 | 逻辑测试（编码映射/缓存）；网络由运行环境决定 |
 | 愿望清单 / 时间胶囊 | 通过 | 代码走查 |
 | 中英文切换 | 通过 | key 覆盖检查 |
 | JSON 导出 / 导入 / 重置 | 通过 | 往返 + 非法文件测试；导入/重置二次确认 |

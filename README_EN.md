@@ -8,7 +8,7 @@ DAYS (Days Are Yours) is a personal life assistant plugin for [DeepSeek Harness]
 
 Repository: **Days-Are-Yours** · Package: `@local/days` · Version: 1.1.0
 
-All data stays in the browser (`localStorage`). No account, no API key, no telemetry, no network calls.
+All data stays in the browser (`localStorage`). No account, no API key, no telemetry. The optional weather bar sends the chosen city's coordinates to Open-Meteo; with no city set, the app never goes online.
 
 ## Features
 

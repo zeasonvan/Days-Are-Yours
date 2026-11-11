@@ -19,6 +19,7 @@ interface DAYSState {
     salaryDay: number | ''   // 1..28
     leaveQuota: number
     leaveCarry: number
+    location: { name: string, latitude: number, longitude: number } | null
   }
   countdowns: { id, name, date, yearly }[]
   leaves: { id, type, name, start, end, countsAsLeave, half: 'none'|'am'|'pm', note }[]
@@ -41,6 +42,12 @@ interface DAYSState {
 - 请假 `days` 为闭区间天数；跨年请假按开始年份计入余额。
 - 假期数据 `HOLIDAY_DATA[year] = [name, firstOffDay, lastOffDay, makeUpDays[]]`，只收录国务院已公布年份；未收录年份只按周末计算，并在 UI 中不伪造假期。
 - 时间胶囊正文只存本地，锁定期间 UI 不渲染正文。
+
+## Weather cache
+
+- Separate key `days/weather-cache:v1`: `{ location, fetchedAt, data }`.
+- TTL 30 minutes; coordinates must match the current profile location or the cache is ignored.
+- Never part of the main state or the JSON export.
 
 ## 迁移
 
