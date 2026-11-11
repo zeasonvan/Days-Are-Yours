@@ -150,6 +150,8 @@ check('same location check', api.sameLocation({ latitude: 1, longitude: 2 }, { l
 check('location sanitized', JSON.stringify(api.sanitize({ profile: { location: { name: '上海', latitude: 31.2, longitude: 121.5 } } }).profile.location), JSON.stringify({ name: '上海', latitude: 31.2, longitude: 121.5 }))
 check('invalid location dropped', api.sanitize({ profile: { location: { name: 'x' } } }).profile.location, null)
 check('pet reaches level 3 at 100 xp', api.petLevel(100), 3)
+check('blob smiles by default', api.petMood(new Date(2026, 10, 9, 14, 0)), 'happy')
+check('blob smiles at night too', api.petMood(new Date(2026, 10, 9, 2, 0)), 'happy')
 
 /* --- RC: pet interactions are capped -------------------------------- */
 const petBase = api.sanitize(api.defaultState())

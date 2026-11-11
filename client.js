@@ -1158,12 +1158,9 @@ window.__ModuleLoader__.load({
       }
     }
 
-    function petMood(now) {
-      const hour = now.getHours()
-      if (hour < 7) return 'sleepy'
-      if (hour < 12) return 'happy'
-      if (hour < 18) return 'focused'
-      return 'cozy'
+    function petMood() {
+      // The blob smiles by default; only an interaction temporarily changes it.
+      return 'happy'
     }
 
     /** Birthday and payday are yearly/monthly marks, not stored events. */
@@ -1297,10 +1294,10 @@ window.__ModuleLoader__.load({
       const closedEyes = mood === 'sleepy' || mood === 'cozy'
       const eyeRadius = mood === 'focused' ? 2.0 : 2.6
       const mouth = mood === 'celebrate'
-        ? 'M25 40c2.6 3.4 4.8 4.8 7 4.8s4.4-1.4 7-4.8'
+        ? 'M23 39.5c2.8 3.8 5.4 5.4 9 5.4s6.2-1.6 9-5.4'
         : mood === 'focused'
           ? 'M28 42h8'
-          : 'M27 41c1.8 1.8 3.4 2.6 5 2.6s3.2-.8 5-2.6'
+          : 'M25 40.5c2 2.4 4 3.6 7 3.6s5-1.2 7-3.6'
       return h('svg', {
         width: s, height: s, viewBox: '0 0 64 64', 'aria-hidden': true,
         style: { display: 'block', flex: 'none' },
@@ -1311,7 +1308,9 @@ window.__ModuleLoader__.load({
         ? h('path', { d: 'M24 33c1.4-1.2 3.6-1.2 5 0M35 33c1.4-1.2 3.6-1.2 5 0', stroke: '#354B43', strokeWidth: 2, strokeLinecap: 'round', fill: 'none' })
         : h('g', null,
           h('circle', { cx: 26, cy: 32, r: eyeRadius, fill: '#354B43' }),
-          h('circle', { cx: 38, cy: 32, r: eyeRadius, fill: '#354B43' })),
+          h('circle', { cx: 38, cy: 32, r: eyeRadius, fill: '#354B43' }),
+          h('circle', { cx: 25.1, cy: 31.1, r: 0.9, fill: '#F5F0E6' }),
+          h('circle', { cx: 37.1, cy: 31.1, r: 0.9, fill: '#F5F0E6' })),
       h('path', { d: mouth, stroke: '#354B43', strokeWidth: mood === 'celebrate' ? 2.4 : 2.2, strokeLinecap: 'round', fill: 'none' }),
       h('circle', { cx: 20, cy: 38, r: 3, fill: '#E9D9CE' }),
       h('circle', { cx: 44, cy: 38, r: 3, fill: '#E9D9CE' }))
@@ -2189,7 +2188,7 @@ window.__ModuleLoader__.load({
           notice ? h('p', { className: 'lo-hint', 'aria-live': 'polite' }, notice) : null),
         h(Card, { title: t('about') },
           h('p', { className: 'lo-hint' }, 'DAYS — Days Are Yours · ' + t('slogan')),
-          h('p', { className: 'lo-hint' }, t('version') + ' 1.5.1 · MIT License')))
+          h('p', { className: 'lo-hint' }, t('version') + ' 1.5.2 · MIT License')))
     }
 
     /* ------------------------------------------------------------------ *
