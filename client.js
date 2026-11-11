@@ -939,11 +939,6 @@ window.__ModuleLoader__.load({
       h('circle', { cx: 44, cy: 38, r: 3, fill: '#E9D9CE' }))
     }
 
-    function SectionHead({ title, action }) {
-      return h('div', { className: 'lo-section-head' },
-        h('h2', { className: 'lo-section-title' }, title),
-        action || null)
-    }
 
     /* ------------------------------------------------------------------ *
      * 8. Home
@@ -1664,6 +1659,7 @@ window.__ModuleLoader__.load({
 .lo-quick-label{font-size:11.5px;color:var(--dsw-alias-label-secondary)}
 .lo-quick-value{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
 .lo-quote{display:flex;align-items:center;gap:14px;padding:16px 20px;border:1px dashed var(--dsw-alias-border-l2);border-radius:16px}
+.lo-quote-body{min-width:0}
 .lo-quote-text{margin:0;font-size:13.5px}
 .lo-quote-label{margin:3px 0 0;font-size:11px;color:var(--dsw-alias-label-secondary)}
 .lo-progress-wrap{margin-top:22px}
@@ -1735,9 +1731,11 @@ window.__ModuleLoader__.load({
 .lo-tile-value{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.3}
 .lo-tile-meta{font-size:11.5px;color:var(--dsw-alias-label-secondary)}
 .lo-meters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.lo-meter{display:flex;flex-direction:column;gap:6px}
 .lo-meter-head{display:flex;justify-content:space-between;font-size:12px;color:var(--dsw-alias-label-secondary)}
 .lo-meter-head b{color:var(--dsw-alias-label-primary);font-variant-numeric:tabular-nums}
 .lo-pet{display:flex;align-items:center;gap:18px;padding:20px 22px;border:1px solid var(--dsw-alias-border-l1);border-radius:18px;background:var(--dsw-alias-bg-base)}
+.lo-pet-art{flex:none}
 .lo-pet-body{flex:1;min-width:0}
 .lo-pet-name{margin:0;font-size:15px;font-weight:600}
 .lo-pet-level{margin:2px 0 0;font-size:12px;color:var(--dsw-alias-label-secondary)}
@@ -1809,7 +1807,7 @@ window.__ModuleLoader__.load({
       __internal: {
         defaultState, sanitize, migrateLegacy, parseISO, parseAnyDate, toISO, diffDays, addDays,
         breakdown, monthDay, retirementInfo, delayMonthsFor, addMonths, RETIRE_RULES,
-        HOLIDAY_DATA, dayInfo, isRestDay, holidayPeriods, holidayList: (entries) => entries,
+        HOLIDAY_DATA, dayInfo, isRestDay, holidayPeriods,
         customCountdowns, lifeEntries, leaveDays, leaveStats, planLeave, workStatus, nextPayday,
         dailyFun, petLevel, petMood, monthGrid, ACHIEVEMENTS, withAchievements, hashString,
       },
