@@ -1,6 +1,6 @@
 # Release checklist — v1.1.0 (DAYS)
 
-Date: 2026-11-11 · Bundle: `@local/days@1.1.0` · Installed: yes (`application: applied`); old `@local/lifeos` bundle removed, dangling link cleaned
+Date: 2026-11-11 · Bundle: `@local/days@1.2.0` · Installed: yes (`application: applied`); old `@local/lifeos` bundle removed, dangling link cleaned
 
 ## Functional
 
@@ -10,9 +10,9 @@ Date: 2026-11-11 · Bundle: `@local/days@1.1.0` · Installed: yes (`application:
 | 自定义倒计时（含每年重复、过期） | 通过 | 单元测试 |
 | 法定假期与补班（2025–2027） | 通过 | 单元测试 + 数据核对 |
 | 年假额度/结转/已用/剩余（工作日口径） | 通过 | 单元测试 |
-| 请假记录增删 | 通过 | 代码走查（编辑未实现，见下） |
+| 请假记录增删、点选日期、半天 | 通过 | 单元测试 + 代码走查（编辑未实现，见下） |
 | 拼假计算器三种排序 | 通过 | 专项测试（预算、边界、不变量） |
-| 月历标记（假/班/假） | 通过 | 代码走查 + 类覆盖检查 |
+| 月历标记（假/班/假/薪/生） | 通过 | 单元测试（标记计算）+ 类覆盖检查 |
 | 下班 / 发薪倒计时 | 通过 | 单元测试 |
 | 团子 / 指数 / 成就 | 通过 | 单元测试 + 代码走查 |
 | 愿望清单 / 时间胶囊 | 通过 | 代码走查 |

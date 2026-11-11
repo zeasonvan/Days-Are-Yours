@@ -97,6 +97,24 @@ window.__ModuleLoader__.load({
       leaveCarry: '上年结转|Carried over',
       leaveUsed: '已用|Used',
       leaveLeft: '剩余|Left',
+      annualLeft: '年假剩余|Annual leave left',
+      leaveUpcoming: '待休|Upcoming',
+      leaveDone: '已休|Taken',
+      halfDay: '时长|Duration',
+      fullDay: '全天|Full day',
+      morningHalf: '上午半天（0.5 天）|Morning (0.5 day)',
+      afternoonHalf: '下午半天（0.5 天）|Afternoon (0.5 day)',
+      selectDatesHint: '在日历上点两下选日期：第一下开始，第二下结束|Tap the calendar twice: first start, second end',
+      selectedRange: '已选 {range}|Selected {range}',
+      addFromDay: '为这一天请假|Add leave for this day',
+      pickDates: '选择日期|Pick dates',
+      paydayLabel: '发薪日|Payday',
+      birthdayLabel: '生日|Birthday',
+      legendBirthday: '生日|Birthday',
+      legendPayday: '发薪|Payday',
+      paydayShort: '薪|P',
+      birthdayShort: '生|B',
+      funDesc: '下班与发薪倒计时、每日小确幸、时光团子和成就都在这里。|Off-work and payday countdowns, daily joys, the blob and achievements.',
       addLeave: '添加请假|Add leave',
       leaveType: '假期类型|Leave type',
       leaveCustom: '自定义|Custom',
@@ -472,6 +490,7 @@ window.__ModuleLoader__.load({
           start: item.start,
           end: parseISO(item.end) ? item.end : item.start,
           countsAsLeave: !!item.countsAsLeave,
+          half: ['am', 'pm'].includes(item.half) ? item.half : 'none',
           note: typeof item.note === 'string' ? item.note : '',
         })) : []
 
@@ -538,7 +557,7 @@ window.__ModuleLoader__.load({
         .map((item) => ({
           id: item.id || uid('lv'), type: 'custom', name: item.name,
           start: item.start, end: parseISO(item.end) ? item.end : item.start,
-          countsAsLeave: false, note: '',
+          countsAsLeave: false, half: 'none', note: '',
         }))
       return next
     }
@@ -554,14 +573,14 @@ window.__ModuleLoader__.load({
     }
 
     const ACHIEVEMENTS = [
-      { id: 'retire', title: '退休梦想家|Retirement Dreamer', test: (s) => !!retirementInfo(s.profile) },
-      { id: 'countdown', title: '时间收藏家|Countdown Collector', test: (s) => s.countdowns.length > 0 },
-      { id: 'planner', title: '拼假大师|Leave Alchemist', test: (s) => s.stats.plannerRuns > 0 },
-      { id: 'goal', title: '愿望清单|Wishlist', test: (s) => s.goals.length > 0 },
-      { id: 'capsule', title: '写给未来|Letter to Future', test: (s) => s.capsules.length > 0 },
-      { id: 'pet3', title: '团子好友|Blob Friend', test: (s) => petLevel(s.pet.xp) >= 3 },
-      { id: 'leave5', title: '休假达人|Leave Master', test: (s) => s.leaves.length >= 5 },
-      { id: 'export', title: '数据管家|Data Keeper', test: (s) => s.stats.exports > 0 },
+      { id: 'retire', title: '退休梦想家|Retirement Dreamer', desc: '填写出生日期与性别，或手动指定退休日期|Add birth date and sex, or set a manual retirement date', test: (s) => !!retirementInfo(s.profile) },
+      { id: 'countdown', title: '时间收藏家|Countdown Collector', desc: '添加至少一个自定义倒计时|Add at least one custom countdown', test: (s) => s.countdowns.length > 0 },
+      { id: 'planner', title: '拼假大师|Leave Alchemist', desc: '运行一次拼假计算器|Run the leave planner once', test: (s) => s.stats.plannerRuns > 0 },
+      { id: 'goal', title: '愿望清单|Wishlist', desc: '添加一个愿望|Add one wish', test: (s) => s.goals.length > 0 },
+      { id: 'capsule', title: '写给未来|Letter to Future', desc: '写一封时间胶囊|Write one time capsule', test: (s) => s.capsules.length > 0 },
+      { id: 'pet3', title: '团子好友|Blob Friend', desc: '把时光团子养到 3 级（100 经验）|Raise the blob to level 3 (100 XP)', test: (s) => petLevel(s.pet.xp) >= 3 },
+      { id: 'leave5', title: '休假达人|Leave Master', desc: '记录 5 次请假|Record 5 leaves', test: (s) => s.leaves.length >= 5 },
+      { id: 'export', title: '数据管家|Data Keeper', desc: '导出一次 JSON 备份|Export a JSON backup once', test: (s) => s.stats.exports > 0 },
     ]
 
     function withAchievements(state) {
@@ -703,6 +722,9 @@ window.__ModuleLoader__.load({
       const start = parseISO(leave.start)
       const end = parseISO(leave.end) || start
       if (!start) return 0
+      if (leave.half && leave.half !== 'none' && diffDays(start, end) === 0) {
+        return isRestDay(start) ? 0 : 0.5
+      }
       let count = 0
       for (let cursor = start; diffDays(cursor, end) >= 0; cursor = addDays(cursor, 1)) {
         if (!isRestDay(cursor)) count += 1
@@ -710,13 +732,26 @@ window.__ModuleLoader__.load({
       return count
     }
 
-    function leaveStats(state, year) {
+    /**
+     * Annual leave is deducted only after the leave has ended. Future leave is
+     * reported as `upcoming`, so planning a holiday in advance does not make the
+     * balance look empty.
+     */
+    function leaveStats(state, year, reference) {
       const target = year || new Date().getFullYear()
-      const used = state.leaves
-        .filter((leave) => leave.countsAsLeave && parseISO(leave.start) && parseISO(leave.start).getFullYear() === target)
-        .reduce((sum, leave) => sum + leaveWorkDays(leave), 0)
+      const today = startOfDay(reference || new Date())
+      const rows = state.leaves.filter((leave) => leave.countsAsLeave && parseISO(leave.start) && parseISO(leave.start).getFullYear() === target)
+      let used = 0
+      let upcoming = 0
+      for (const leave of rows) {
+        const end = parseISO(leave.end) || parseISO(leave.start)
+        const days = leaveWorkDays(leave)
+        if (diffDays(today, end) < 0) used += days
+        else upcoming += days
+      }
       const quota = state.profile.leaveQuota + state.profile.leaveCarry
-      return { quota, used, left: quota - used }
+      const left = quota - used
+      return { quota, used, upcoming, left, available: left - upcoming }
     }
 
     /**
@@ -866,6 +901,14 @@ window.__ModuleLoader__.load({
       return 'cozy'
     }
 
+    /** Birthday and payday are yearly/monthly marks, not stored events. */
+    function dayMarks(date, profile) {
+      const birth = parseISO(profile.birthDate)
+      const birthday = !!birth && birth.getMonth() === date.getMonth() && birth.getDate() === date.getDate()
+      const payday = !!profile.salaryDay && Number(profile.salaryDay) === date.getDate()
+      return { birthday, payday }
+    }
+
     function monthGrid(year, month, state) {
       const first = new Date(year, month, 1)
       const offset = (first.getDay() + 6) % 7
@@ -924,9 +967,14 @@ window.__ModuleLoader__.load({
       })
     }
 
-    function Select({ value, onChange, options }) {
-      return h('select', { className: 'lo-input', value: value, onChange: (event) => onChange(event.target.value) },
-        options.map((option) => h('option', { key: option.value, value: option.value }, option.label)))
+    function Select({ value, onChange, options, disabled }) {
+      return h('select', {
+        className: 'lo-input',
+        value: value,
+        disabled: !!disabled,
+        onChange: (event) => onChange(event.target.value),
+      },
+      options.map((option) => h('option', { key: option.value, value: option.value }, option.label)))
     }
 
     function Button({ children, onClick, variant, type }) {
@@ -1068,13 +1116,14 @@ window.__ModuleLoader__.load({
     function QuickStats({ state, now }) {
       const work = workStatus(state.profile, now)
       const payday = nextPayday(state.profile, now)
-      const leave = leaveStats(state, now.getFullYear())
+      const leave = leaveStats(state, now.getFullYear(), now)
       const workText = work.state === 'working'
         ? (LANG === 'en' ? Math.floor(work.minutes / 60) + 'h ' + (work.minutes % 60) + 'm' : Math.floor(work.minutes / 60) + ' 小时 ' + (work.minutes % 60) + ' 分')
         : work.state === 'before'
           ? (LANG === 'en' ? 'in ' + work.minutes + 'm' : '还有 ' + work.minutes + ' 分钟')
           : t('dayOff')
       const leaveText = leave.left + ' ' + t('days')
+        + (leave.upcoming > 0 ? (LANG === 'en' ? ' · ' + leave.upcoming + ' upcoming' : ' · 待休 ' + leave.upcoming + ' 天') : '')
       return h('div', { className: 'lo-strip' },
         h('div', { className: 'lo-strip-item' },
           h('span', { className: 'lo-strip-label' }, work.state === 'working' ? t('workUntil') : work.state === 'before' ? t('workStartIn') : t('dayOff')),
@@ -1083,7 +1132,7 @@ window.__ModuleLoader__.load({
           h('span', { className: 'lo-strip-label' }, t('payday')),
           h('span', { className: 'lo-strip-value' }, payday ? (LANG === 'en' ? Math.max(0, diffDays(startOfDay(now), payday)) + ' d' : Math.max(0, diffDays(startOfDay(now), payday)) + ' 天') : t('none'))),
         h('div', { className: 'lo-strip-item' },
-          h('span', { className: 'lo-strip-label' }, t('leaveLeft')),
+          h('span', { className: 'lo-strip-label' }, t('annualLeft')),
           h('span', { className: 'lo-strip-value' + (leave.left < 0 ? ' lo-negative' : '') }, leaveText)))
     }
 
@@ -1191,37 +1240,66 @@ window.__ModuleLoader__.load({
       return LANG === 'en' ? parts[1] || parts[0] : parts[0]
     }
 
-    function MonthGrid({ state, cursor, selected, onSelect }) {
+    function MonthGrid({ state, profile, cursor, selected, draft, onSelect }) {
       const cells = monthGrid(cursor.getFullYear(), cursor.getMonth(), state)
+      const todayISO = toISO(new Date())
       const weeks = []
       for (let index = 0; index < cells.length; index += 7) weeks.push(cells.slice(index, index + 7))
+
       return h('div', { className: 'lo-month' },
         h('div', { className: 'lo-weekdays' },
           ['一', '二', '三', '四', '五', '六', '日'].map((day, index) => h('span', { key: day, className: 'lo-weekday' }, LANG === 'en' ? ['M', 'T', 'W', 'T', 'F', 'S', 'S'][index] : day))),
         weeks.map((week, weekIndex) => h('div', { key: weekIndex, className: 'lo-week' }, week.map((cell) => {
-          const isSelected = selected && toISO(cell.date) === toISO(selected)
-          const isToday = toISO(cell.date) === toISO(new Date())
-          const label = formatDate(cell.date) + (cell.info.name ? ' · ' + cell.info.name : '') + (cell.leaves.length ? ' · ' + cell.leaves.map((leave) => leave.name).join('、') : '')
+          const iso = toISO(cell.date)
+          const isSelected = selected && iso === toISO(selected)
+          const isToday = iso === todayISO
+          const marks = dayMarks(cell.date, profile)
+          const inRange = !!draft && diffDays(draft.start, cell.date) >= 0 && diffDays(cell.date, draft.end) >= 0
+          const rangeStart = inRange && iso === toISO(draft.start)
+          const rangeEnd = inRange && iso === toISO(draft.end)
+          const label = [
+            formatDate(cell.date),
+            cell.info.name || '',
+            cell.leaves.length ? cell.leaves.map((leave) => leave.name).join('、') : '',
+            marks.birthday ? t('birthdayLabel') : '',
+            marks.payday ? t('paydayLabel') : '',
+          ].filter(Boolean).join(' · ')
           return h('button', {
-            key: toISO(cell.date),
+            key: iso,
             type: 'button',
             'aria-label': label,
-            className: cx('lo-day', cell.outside && 'lo-day-outside', cell.info.type === 'weekend' && 'lo-day-weekend', isToday && 'lo-day-today', isSelected && 'lo-day-selected', cell.info.type === 'holiday' && 'lo-day-holiday', cell.info.type === 'makeup' && 'lo-day-makeup'),
+            className: cx(
+              'lo-day',
+              cell.outside && 'lo-day-outside',
+              cell.info.type === 'weekend' && 'lo-day-weekend',
+              cell.info.type === 'holiday' && 'lo-day-holiday',
+              cell.info.type === 'makeup' && 'lo-day-makeup',
+              isToday && 'lo-day-today',
+              isSelected && 'lo-day-selected',
+              inRange && 'lo-day-in-range',
+              rangeStart && 'lo-day-range-start',
+              rangeEnd && 'lo-day-range-end',
+            ),
             onClick: () => onSelect(startOfDay(cell.date)),
           },
           h('span', { className: 'lo-day-num' }, cell.date.getDate()),
-          cell.info.type === 'holiday' ? h('span', { className: 'lo-day-mark' }) : null,
-          cell.info.type === 'makeup' ? h('span', { className: 'lo-day-work-badge' }, t('makeupShort')) : null,
-          cell.leaves.length ? h('span', { className: 'lo-day-mark lo-day-mark-leave' }) : null)
+          h('span', { className: 'lo-day-marks' },
+            cell.info.type === 'holiday' ? h('i', { className: 'lo-day-mark' }) : null,
+            cell.leaves.length ? h('i', { className: 'lo-day-mark lo-day-mark-leave' }) : null,
+            cell.info.type === 'makeup' ? h('span', { className: 'lo-day-badge' }, t('makeupShort')) : null,
+            marks.payday ? h('span', { className: 'lo-day-badge' }, t('paydayShort')) : null,
+            marks.birthday ? h('span', { className: 'lo-day-badge lo-day-badge-birthday' }, t('birthdayShort')) : null))
         }))))
     }
 
     function CalendarView({ state, now }) {
       const [cursor, setCursor] = useState(() => new Date(now.getFullYear(), now.getMonth(), 1))
       const [selected, setSelected] = useState(() => startOfDay(now))
+      const [draft, setDraft] = useState(null)
       const viewYear = cursor.getFullYear()
       const rows = HOLIDAY_DATA[viewYear] || []
       const info = selected ? dayInfo(selected) : null
+      const marks = selected ? dayMarks(selected, state.profile) : { birthday: false, payday: false }
       const selectedLeaves = selected
         ? state.leaves.filter((leave) => {
           const start = parseISO(leave.start)
@@ -1229,6 +1307,28 @@ window.__ModuleLoader__.load({
           return start && diffDays(start, selected) >= 0 && diffDays(selected, end) >= 0
         })
         : []
+
+      const startDraft = (date) => setDraft({ start: startOfDay(date), end: startOfDay(date) })
+
+      const onSelect = (date) => {
+        setSelected(date)
+        if (!draft) return
+        setDraft((current) => {
+          if (!current) return current
+          const single = diffDays(current.start, current.end) === 0
+          if (single) {
+            if (diffDays(date, current.start) < 0) return { start: date, end: current.start }
+            return { start: current.start, end: date }
+          }
+          return { start: date, end: date }
+        })
+      }
+
+      const rangeText = draft
+        ? (diffDays(draft.start, draft.end) === 0
+          ? formatDate(draft.start)
+          : formatDate(draft.start) + ' – ' + formatDate(draft.end))
+        : ''
 
       return h('div', { className: 'lo-view' },
         h(Card, {
@@ -1238,47 +1338,65 @@ window.__ModuleLoader__.load({
             h('button', { type: 'button', className: 'lo-link', onClick: () => setCursor(new Date(now.getFullYear(), now.getMonth(), 1)) }, t('today')),
             h('button', { type: 'button', className: 'lo-link', onClick: () => setCursor(new Date(viewYear, cursor.getMonth() + 1, 1)) }, t('monthNext'))),
         },
-        h(MonthGrid, { state, cursor, selected, onSelect: setSelected }),
+        h(MonthGrid, { state, profile: state.profile, cursor, selected, draft, onSelect }),
+        draft
+          ? h('p', { className: 'lo-hint' }, t('selectDatesHint') + ' · ' + t('selectedRange', { range: rangeText }))
+          : null,
         h('div', { className: 'lo-legend' },
           h('span', null, h('i', { className: 'lo-dot lo-dot-holiday' }), t('legendHoliday')),
           h('span', null, h('i', { className: 'lo-dot lo-dot-leave' }), t('legendLeave')),
-          h('span', null, h('i', { className: 'lo-dot lo-dot-work' }), t('legendMakeup')))),
+          h('span', null, h('i', { className: 'lo-dot lo-dot-work' }), t('legendMakeup')),
+          h('span', null, h('i', { className: 'lo-dot lo-dot-payday' }), t('legendPayday')),
+          h('span', null, h('i', { className: 'lo-dot lo-dot-birthday' }), t('legendBirthday')))),
         selected
           ? h(Card, { title: formatDate(selected) + ' · ' + weekdayName(selected) },
             info && info.name
               ? h('p', { className: 'lo-note' }, info.type === 'makeup' ? t('makeupFor', { name: info.name }) : info.name)
               : null,
+            marks.payday ? h('p', { className: 'lo-note' }, t('paydayLabel')) : null,
+            marks.birthday ? h('p', { className: 'lo-note' }, t('birthdayLabel')) : null,
             selectedLeaves.length
               ? h('ul', { className: 'lo-list' }, selectedLeaves.map((leave) => h('li', { key: leave.id, className: 'lo-row' },
                 h('div', { className: 'lo-row-main' },
-                  h('span', { className: 'lo-row-name' }, leave.name),
+                  h('span', { className: 'lo-row-name' }, leave.name, leave.half && leave.half !== 'none' ? h('em', { className: 'lo-chip' }, leave.half === 'am' ? t('morningHalf') : t('afternoonHalf')) : null),
                   h('span', { className: 'lo-row-meta' }, leaveTypeLabel(leave.type) + ' · ' + formatDate(parseISO(leave.start)) + ' – ' + formatDate(parseISO(leave.end) || parseISO(leave.start)))))))
-              : h('p', { className: 'lo-empty' }, t('nothingOnDay')))
+              : h('p', { className: 'lo-empty' }, t('nothingOnDay')),
+            h('div', { className: 'lo-actions' },
+              h(Button, { onClick: () => startDraft(selected) }, t('addFromDay'))))
           : null,
-        h(LeaveSection, { state, now }),
+        h(LeaveSection, { state, now, draft, setDraft, defaultDate: selected }),
         h(YearHolidays, { year: viewYear, rows }),
         h(Planner, { state, now }))
     }
 
-    function LeaveSection({ state, now }) {
-      const stats = leaveStats(state, now.getFullYear())
-      const [draft, setDraft] = useState(() => ({ type: 'annual', name: '', start: '', end: '', countsAsLeave: true, note: '' }))
+    function LeaveSection({ state, now, draft, setDraft, defaultDate }) {
+      const stats = leaveStats(state, now.getFullYear(), now)
+      const [form, setForm] = useState({ type: 'annual', name: '', countsAsLeave: true, half: 'none', note: '' })
       const [error, setError] = useState('')
+      const single = !!draft && diffDays(draft.start, draft.end) === 0
+      const rangeText = draft
+        ? (single ? formatDate(draft.start) : formatDate(draft.start) + ' – ' + formatDate(draft.end))
+        : ''
+
+      const openForm = () => {
+        setDraft({ start: startOfDay(defaultDate || now), end: startOfDay(defaultDate || now) })
+        setError('')
+      }
 
       const submit = () => {
-        if (!draft.name.trim()) return setError(t('errName'))
-        const start = parseISO(draft.start)
-        if (!start) return setError(t('errDate'))
-        const end = parseISO(draft.end) || start
-        if (diffDays(start, end) < 0) return setError(t('errRange'))
+        if (!draft) return
+        if (!form.name.trim()) return setError(t('errName'))
         patch({
           leaves: state.leaves.concat([{
-            id: uid('lv'), type: draft.type, name: draft.name.trim(),
-            start: draft.start, end: draft.end || draft.start,
-            countsAsLeave: draft.countsAsLeave, note: draft.note,
+            id: uid('lv'), type: form.type, name: form.name.trim(),
+            start: toISO(draft.start), end: toISO(draft.end),
+            countsAsLeave: form.countsAsLeave,
+            half: single ? form.half : 'none',
+            note: form.note,
           }]),
         })
-        setDraft({ type: 'annual', name: '', start: '', end: '', countsAsLeave: true, note: '' })
+        setDraft(null)
+        setForm({ type: 'annual', name: '', countsAsLeave: true, half: 'none', note: '' })
         setError('')
       }
 
@@ -1287,36 +1405,59 @@ window.__ModuleLoader__.load({
         action: h('span', { className: 'lo-count' }, stats.left + ' / ' + stats.quota),
       },
       h('div', { className: 'lo-stats' },
-        h('div', { className: 'lo-stat' }, h('span', { className: 'lo-stat-label' }, t('leaveQuota')), h('b', null, state.profile.leaveQuota)),
-        h('div', { className: 'lo-stat' }, h('span', { className: 'lo-stat-label' }, t('leaveCarry')), h('b', null, state.profile.leaveCarry)),
+        h('div', { className: 'lo-stat' }, h('span', { className: 'lo-stat-label' }, t('leaveQuota')), h('b', null, stats.quota)),
         h('div', { className: 'lo-stat' }, h('span', { className: 'lo-stat-label' }, t('leaveUsed')), h('b', null, stats.used)),
-        h('div', { className: 'lo-stat' }, h('span', { className: 'lo-stat-label' }, t('leaveLeft')), h('b', null, stats.left))),
-      h('div', { className: 'lo-form' },
-        h(Field, { label: t('leaveType') },
-          h(Select, { value: draft.type, onChange: (value) => setDraft(Object.assign({}, draft, { type: value })), options: LEAVE_TYPES.map((item) => {
-            const parts = item.label.split('|')
-            return { value: item.value, label: LANG === 'en' ? parts[1] || parts[0] : parts[0] }
-          }) })),
-        h(Field, { label: t('name') }, h(TextInput, { value: draft.name, onChange: (value) => setDraft(Object.assign({}, draft, { name: value })) })),
-        h(Field, { label: t('start') }, h(DateField, { value: draft.start, onChange: (value) => setDraft(Object.assign({}, draft, { start: value })) })),
-        h(Field, { label: t('end') }, h(DateField, { value: draft.end, onChange: (value) => setDraft(Object.assign({}, draft, { end: value })) })),
-        h('label', { className: 'lo-check' },
-          h('input', { type: 'checkbox', checked: draft.countsAsLeave, onChange: (event) => setDraft(Object.assign({}, draft, { countsAsLeave: event.target.checked })) }),
-          h('span', null, t('countsAsLeave'))),
-        h(Button, { variant: 'primary', onClick: submit }, t('addLeave'))),
+        h('div', { className: 'lo-stat' }, h('span', { className: 'lo-stat-label' }, t('leaveUpcoming')), h('b', null, stats.upcoming)),
+        h('div', { className: 'lo-stat' }, h('span', { className: 'lo-stat-label' }, t('leaveLeft')), h('b', { className: stats.left < 0 ? 'lo-negative' : '' }, stats.left))),
+      draft
+        ? h('div', { className: 'lo-form' },
+          h('div', { className: 'lo-field lo-field-wide' },
+            h('span', { className: 'lo-field-label' }, t('selectDatesHint')),
+            h('span', { className: 'lo-range-display' }, t('selectedRange', { range: rangeText }))),
+          h(Field, { label: t('leaveType') },
+            h(Select, { value: form.type, onChange: (value) => setForm(Object.assign({}, form, { type: value })), options: LEAVE_TYPES.map((item) => {
+              const parts = item.label.split('|')
+              return { value: item.value, label: LANG === 'en' ? parts[1] || parts[0] : parts[0] }
+            }) })),
+          h(Field, { label: t('name') }, h(TextInput, { value: form.name, onChange: (value) => setForm(Object.assign({}, form, { name: value })) })),
+          h(Field, { label: t('halfDay') }, h(Select, {
+            value: single ? form.half : 'none',
+            disabled: !single,
+            onChange: (value) => setForm(Object.assign({}, form, { half: value })),
+            options: [
+              { value: 'none', label: t('fullDay') },
+              { value: 'am', label: t('morningHalf') },
+              { value: 'pm', label: t('afternoonHalf') },
+            ],
+          })),
+          h('label', { className: 'lo-check' },
+            h('input', { type: 'checkbox', checked: form.countsAsLeave, onChange: (event) => setForm(Object.assign({}, form, { countsAsLeave: event.target.checked })) }),
+            h('span', null, t('countsAsLeave'))),
+          h(Button, { onClick: () => { setDraft(null); setError('') } }, t('cancel')),
+          h(Button, { variant: 'primary', onClick: submit }, t('addLeave')))
+        : h('div', { className: 'lo-actions' },
+          h(Button, { onClick: openForm }, t('pickDates'))),
       h('p', { className: 'lo-hint' }, t('leaveHint')),
       error ? h('p', { className: 'lo-error' }, error) : null,
       state.leaves.length === 0
         ? h('p', { className: 'lo-empty' }, t('leaveEmpty'))
-        : h('ul', { className: 'lo-list' }, state.leaves.slice().sort((a, b) => diffDays(parseISO(b.start), parseISO(a.start))).map((leave) => h('li', { key: leave.id, className: 'lo-row' },
-          h('div', { className: 'lo-row-main' },
-            h('span', { className: 'lo-row-name' }, leave.name,
-              leave.countsAsLeave ? h('em', { className: 'lo-chip' }, LANG === 'en' ? 'leave' : '年假') : null),
-            h('span', { className: 'lo-row-meta' },
-              leaveTypeLabel(leave.type) + ' · ' + formatDate(parseISO(leave.start)) + ' – ' + formatDate(parseISO(leave.end) || parseISO(leave.start))
-              + (leave.countsAsLeave ? ' · ' + t('workdaysCount', { n: leaveWorkDays(leave) }) : ''))),
-          h('span', { className: 'lo-row-days' }, leaveDays(leave), h('em', null, t('days'))),
-          h('button', { type: 'button', className: 'lo-link lo-danger', onClick: () => patch({ leaves: state.leaves.filter((item) => item.id !== leave.id) }) }, t('delete'))))))
+        : h('ul', { className: 'lo-list' }, state.leaves.slice().sort((a, b) => diffDays(parseISO(b.start), parseISO(a.start))).map((leave) => {
+          const end = parseISO(leave.end) || parseISO(leave.start)
+          const completed = diffDays(startOfDay(now), end) < 0
+          const amount = leave.countsAsLeave ? leaveWorkDays(leave) : leaveDays(leave)
+          const halfLabel = leave.half === 'am' ? t('morningHalf') : leave.half === 'pm' ? t('afternoonHalf') : ''
+          return h('li', { key: leave.id, className: 'lo-row' },
+            h('div', { className: 'lo-row-main' },
+              h('span', { className: 'lo-row-name' }, leave.name,
+                leave.countsAsLeave ? h('em', { className: 'lo-chip' }, LANG === 'en' ? 'leave' : '年假') : null,
+                h('em', { className: 'lo-chip' }, completed ? t('leaveDone') : t('leaveUpcoming'))),
+              h('span', { className: 'lo-row-meta' },
+                leaveTypeLabel(leave.type) + ' · ' + formatDate(parseISO(leave.start)) + ' – ' + formatDate(end)
+                + (halfLabel ? ' · ' + halfLabel : '')
+                + (leave.countsAsLeave ? ' · ' + t('workdaysCount', { n: amount }) : ''))),
+            h('span', { className: 'lo-row-days' }, amount, h('em', null, t('days'))),
+            h('button', { type: 'button', className: 'lo-link lo-danger', onClick: () => patch({ leaves: state.leaves.filter((item) => item.id !== leave.id) }) }, t('delete')))
+        })))
     }
 
     function YearHolidays({ year, rows }) {
@@ -1341,8 +1482,8 @@ window.__ModuleLoader__.load({
     }
 
     function Planner({ state, now }) {
-      const stats = leaveStats(state, now.getFullYear())
-      const [budget, setBudget] = useState(String(Math.max(1, stats.left || 1)))
+      const stats = leaveStats(state, now.getFullYear(), now)
+      const [budget, setBudget] = useState(String(Math.max(1, Math.floor(stats.available) || 1)))
       const [from, setFrom] = useState(toISO(startOfDay(now)))
       const [to, setTo] = useState(toISO(addDays(startOfDay(now), 90)))
       const [sort, setSort] = useState('longest')
@@ -1416,6 +1557,7 @@ window.__ModuleLoader__.load({
           : t('dayOff')
 
       return h('div', { className: 'lo-view' },
+        h('p', { className: 'lo-hint' }, t('funDesc')),
         h('div', { className: 'lo-duo' },
           h('section', { className: 'lo-tile' },
             h('span', { className: 'lo-tile-label' }, work.state === 'working' ? t('workUntil') : work.state === 'before' ? t('workStartIn') : t('dayOff')),
@@ -1444,11 +1586,14 @@ window.__ModuleLoader__.load({
             const unlockedAt = state.achievements[item.id]
             const parts = item.title.split('|')
             const title = LANG === 'en' ? parts[1] || parts[0] : parts[0]
-            return h('div', { key: item.id, className: cx('lo-achievement', unlockedAt && 'lo-achievement-on') },
+            const descParts = item.desc.split('|')
+            const desc = LANG === 'en' ? descParts[1] || descParts[0] : descParts[0]
+            return h('div', { key: item.id, className: cx('lo-achievement', unlockedAt && 'lo-achievement-on'), title: desc },
               h('span', { className: 'lo-achievement-dot' }),
               h('div', null,
                 h('span', { className: 'lo-achievement-name' }, title),
-                h('span', { className: 'lo-achievement-meta' }, unlockedAt ? unlockedAt : t('locked'))))
+                h('span', { className: 'lo-achievement-meta' }, unlockedAt ? unlockedAt : t('locked')),
+                h('span', { className: 'lo-achievement-desc' }, desc)))
           }))))
     }
 
@@ -1624,7 +1769,7 @@ window.__ModuleLoader__.load({
           notice ? h('p', { className: 'lo-hint', 'aria-live': 'polite' }, notice) : null),
         h(Card, { title: t('about') },
           h('p', { className: 'lo-hint' }, 'DAYS — Days Are Yours · ' + t('slogan')),
-          h('p', { className: 'lo-hint' }, t('version') + ' 1.1.0 · MIT License')))
+          h('p', { className: 'lo-hint' }, t('version') + ' 1.2.0 · MIT License')))
     }
 
     /* ------------------------------------------------------------------ *
@@ -1779,6 +1924,7 @@ window.__ModuleLoader__.load({
 .lo-field-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lo-input{height:34px;min-width:0;padding:0 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px}
 .lo-input:focus{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-1px}
+.lo-input:disabled{opacity:.5;cursor:not-allowed}
 .lo-input-invalid{border-color:var(--dsw-alias-state-error-primary)}
 .lo-textarea{height:auto;min-height:92px;padding:9px 10px;resize:vertical;line-height:1.6}
 .lo-check{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--dsw-alias-label-secondary);cursor:pointer;user-select:none}
@@ -1814,7 +1960,7 @@ window.__ModuleLoader__.load({
 .lo-weekdays,.lo-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
 .lo-weekday{font-size:11px;color:var(--dsw-alias-label-secondary);text-align:center;padding:4px 0}
 .lo-week{margin-top:4px}
-.lo-day{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:6px 4px;border:1px solid transparent;border-radius:11px;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.lo-day{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:50px;padding:5px 3px;border:1px solid transparent;border-radius:11px;background:transparent;color:inherit;font:inherit;cursor:pointer}
 .lo-day:hover{background:var(--dsw-alias-bg-layer-2)}
 .lo-day-num{font-size:13px;font-variant-numeric:tabular-nums}
 .lo-day-outside .lo-day-num{color:var(--dsw-alias-label-secondary);opacity:.55}
@@ -1825,7 +1971,12 @@ window.__ModuleLoader__.load({
 .lo-day-selected{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-border-l2)}
 .lo-day-mark{width:4px;height:4px;border-radius:50%;background:var(--lo-peach)}
 .lo-day-mark-leave{background:var(--dsw-alias-brand-primary)}
-.lo-day-work-badge{font-size:9px;line-height:12px;padding:0 3px;border-radius:3px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary)}
+.lo-day-marks{display:flex;align-items:center;justify-content:center;gap:3px;min-height:10px}
+.lo-day-badge{font-size:8.5px;line-height:11px;padding:0 3px;border-radius:3px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);white-space:nowrap}
+.lo-day-badge-birthday{color:var(--lo-forest);background:var(--lo-sage)}
+.lo-day-in-range{background:var(--dsw-alias-bg-layer-2)}
+.lo-day-range-start,.lo-day-range-end{border-color:var(--dsw-alias-brand-primary)}
+.lo-range-display{display:block;padding:3px 0 0;font-size:12.5px;color:var(--dsw-alias-label-primary)}
 .lo-day:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}
 .lo-legend{display:flex;flex-wrap:wrap;gap:14px;font-size:11.5px;color:var(--dsw-alias-label-secondary)}
 .lo-legend span{display:inline-flex;align-items:center;gap:6px}
@@ -1833,6 +1984,8 @@ window.__ModuleLoader__.load({
 .lo-dot-holiday{background:var(--lo-peach)}
 .lo-dot-leave{background:var(--dsw-alias-brand-primary)}
 .lo-dot-work{background:var(--dsw-alias-label-secondary)}
+.lo-dot-payday{background:var(--lo-sand)}
+.lo-dot-birthday{background:var(--lo-sage);border:1px solid var(--lo-forest)}
 .lo-month-nav{display:flex;gap:12px;flex-wrap:wrap}
 .lo-duo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .lo-tile{display:flex;flex-direction:column;gap:4px;padding:18px 20px;border:1px solid var(--dsw-alias-border-l1);border-radius:16px;background:var(--dsw-alias-bg-base)}
@@ -1855,6 +2008,7 @@ window.__ModuleLoader__.load({
 .lo-achievement-on .lo-achievement-dot{background:var(--lo-peach);border-color:var(--lo-peach)}
 .lo-achievement-name{display:block;font-size:12.5px}
 .lo-achievement-meta{display:block;font-size:11px;color:var(--dsw-alias-label-secondary)}
+.lo-achievement-desc{display:block;margin-top:1px;font-size:10.5px;line-height:1.4;color:var(--dsw-alias-label-secondary)}
 .lo-workdays{display:flex;flex-wrap:wrap;gap:10px 14px;margin-top:12px}
 .lo-goal{padding:10px 0;border-bottom:1px solid var(--dsw-alias-border-l1)}
 .lo-goal:last-child{border-bottom:0}
@@ -1925,7 +2079,7 @@ window.__ModuleLoader__.load({
         defaultState, sanitize, migrateLegacy, parseISO, parseAnyDate, toISO, diffDays, addDays,
         breakdown, monthDay, retirementInfo, delayMonthsFor, addMonths, RETIRE_RULES,
         STORE_KEY, loadState, buildExport, parseImport, holidayPeriods, HOLIDAY_DATA, dayInfo, isRestDay, nextOccurrence,
-        customCountdowns, lifeEntries, leaveDays, leaveWorkDays, leaveStats, planLeave, workStatus, nextPayday,
+        customCountdowns, lifeEntries, leaveDays, leaveWorkDays, leaveStats, dayMarks, planLeave, workStatus, nextPayday,
         dailyFun, petLevel, petMood, monthGrid, ACHIEVEMENTS, withAchievements, hashString,
       },
       apply(ctx) {

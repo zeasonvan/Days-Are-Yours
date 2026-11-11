@@ -86,9 +86,17 @@ const state = api.sanitize(api.defaultState())
 state.leaves = leaves
 state.profile.leaveQuota = 5
 state.profile.leaveCarry = 2
-const stats = api.leaveStats(state, 2026)
-check('leave used only counts annual', stats.used, 3)
-check('leave remaining', stats.left, 4)
+const stats = api.leaveStats(state, 2026, today)
+check('future leave is not deducted yet', stats.used, 0)
+check('future leave appears as upcoming', stats.upcoming, 3)
+check('annual balance unchanged before leave', stats.left, 7)
+check('available leaves out upcoming', stats.available, 4)
+const pastState = api.sanitize(api.defaultState())
+pastState.profile.leaveQuota = 5
+pastState.leaves = [{ id: 'past', type: 'annual', name: '年假', start: '2026-11-02', end: '2026-11-03', countsAsLeave: true }]
+const pastStats = api.leaveStats(pastState, 2026, today)
+check('completed leave is deducted', pastStats.used, 2)
+check('completed leave reduces balance', pastStats.left, 3)
 
 /* --- planner -------------------------------------------------------- */
 const plans = api.planLeave(api.sanitize({ profile: { leaveQuota: 5 } }), { budget: 3, from: '2026-09-20', to: '2026-10-15', sort: 'longest' })
@@ -162,6 +170,10 @@ check('round-trip leaves', roundTrip.leaves.length, state.leaves.length)
 check('round-trip quota', roundTrip.profile.leaveQuota, state.profile.leaveQuota)
 check('round-trip dates', roundTrip.leaves[0].start, state.leaves[0].start)
 check('round-trip is sanitized', JSON.stringify(api.sanitize(roundTrip)), JSON.stringify(roundTrip))
+const halfRoundTrip = api.parseImport(JSON.stringify(api.buildExport(Object.assign(api.defaultState(), {
+  leaves: [{ id: 'h', type: 'annual', name: '半天', start: '2026-11-10', end: '2026-11-10', countsAsLeave: true, half: 'am' }],
+}))))
+check('half-day survives export/import', halfRoundTrip.leaves[0].half, 'am')
 let rejectedApp = false
 try { api.parseImport(JSON.stringify({ app: 'Other', schema: 1, data: state })) } catch (error) { rejectedApp = true }
 check('import rejects foreign app', rejectedApp, true)
@@ -226,13 +238,24 @@ check('value sort by ratio', byValue[0].ratio >= byValue[byValue.length - 1].rat
 const consistency = api.sanitize(api.defaultState())
 consistency.profile.leaveQuota = 5
 consistency.leaves = [{ id: 'l1', type: 'annual', name: '年假', start: '2026-12-28', end: '2027-01-02', countsAsLeave: true }]
-check('cross-year leave counted in start year', api.leaveStats(consistency, 2026).used, 4)
-check('cross-year leave not double counted', api.leaveStats(consistency, 2027).used, 0)
+const consistencyStats = api.leaveStats(consistency, 2026, today)
+check('cross-year leave is upcoming in start year', consistencyStats.upcoming, 4)
+check('cross-year leave not double counted', api.leaveStats(consistency, 2027, today).used, 0)
 consistency.leaves.push({ id: 'l2', type: 'sick', name: '病假', start: '2026-06-01', end: '2026-06-01', countsAsLeave: false })
-check('non-annual leave ignored', api.leaveStats(consistency, 2026).used, 4)
+check('non-annual leave ignored', api.leaveStats(consistency, 2026, today).upcoming, 4)
 check('leave on weekend uses no annual leave', api.leaveWorkDays({ start: '2026-11-14', end: '2026-11-15' }), 0)
 check('leave on holiday uses no annual leave', api.leaveWorkDays({ start: '2026-10-01', end: '2026-10-07' }), 0)
 check('make-up workday counts as leave day', api.leaveWorkDays({ start: '2026-10-10', end: '2026-10-10' }), 1)
+check('morning half-day is 0.5', api.leaveWorkDays({ start: '2026-11-10', end: '2026-11-10', half: 'am' }), 0.5)
+check('afternoon half-day is 0.5', api.leaveWorkDays({ start: '2026-11-10', end: '2026-11-10', half: 'pm' }), 0.5)
+check('half-day on weekend is 0', api.leaveWorkDays({ start: '2026-11-14', end: '2026-11-14', half: 'am' }), 0)
+check('half field ignored on multi-day leave', api.leaveWorkDays({ start: '2026-11-09', end: '2026-11-11', half: 'am' }), 3)
+
+const marks = api.dayMarks(new Date(2026, 10, 9), { birthDate: '1990-11-09', salaryDay: 15 })
+check('birthday mark', marks.birthday, true)
+check('payday mark', marks.payday, false)
+check('payday mark on salary day', api.dayMarks(new Date(2026, 10, 15), { birthDate: '', salaryDay: 15 }).payday, true)
+check('no marks without profile', JSON.stringify(api.dayMarks(new Date(2026, 10, 15), { birthDate: '', salaryDay: '' })), JSON.stringify({ birthday: false, payday: false }))
 check('payday clamps day 99 to 28', api.toISO(api.nextPayday({ salaryDay: 99 }, today)), '2026-11-28')
 check('payday empty is null', api.nextPayday({ salaryDay: '' }, today), null)
 

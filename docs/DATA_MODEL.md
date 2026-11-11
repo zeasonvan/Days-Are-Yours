@@ -21,7 +21,7 @@ interface DAYSState {
     leaveCarry: number
   }
   countdowns: { id, name, date, yearly }[]
-  leaves: { id, type, name, start, end, countsAsLeave, note }[]
+  leaves: { id, type, name, start, end, countsAsLeave, half: 'none'|'am'|'pm', note }[]
   goals: { id, title, category, target, progress, done, note }[]
   capsules: { id, title, body, unlockDate, createdAt }[]
   pet: { xp, lastPet }
@@ -35,8 +35,9 @@ interface DAYSState {
 
 - 所有日期是本地日历日（无时区偏移），比较用 UTC 毫秒差避免 DST。
 - `sanitize()` 丢弃非法条目而不是抛错；未知字段不保留。
-- 年假余额 = `leaveQuota + leaveCarry - Σ(workdays(leaves where countsAsLeave 且开始年份匹配))`。
-- 年假按**工作日**扣减：周末与法定假期不计入；调休补班日算工作日。记录的自然日天数仍用于展示。
+- 年假余额只在请假**结束之后**扣减：`used = Σ(workdays(已完成且 countsAsLeave 且开始年份匹配))`；`upcoming = Σ(未结束)`；`left = quota + carry - used`；`available = left - upcoming`。
+- 年假按**工作日**扣减：周末与法定假期不计入；调休补班日算工作日。单日 `half` 为 `am`/`pm` 时按 0.5 天。记录的自然日天数仍用于展示。
+- `half` 是 1.2.0 的增量字段，旧数据缺失时按 `none` 处理，不需要迁移。
 - 请假 `days` 为闭区间天数；跨年请假按开始年份计入余额。
 - 假期数据 `HOLIDAY_DATA[year] = [name, firstOffDay, lastOffDay, makeUpDays[]]`，只收录国务院已公布年份；未收录年份只按周末计算，并在 UI 中不伪造假期。
 - 时间胶囊正文只存本地，锁定期间 UI 不渲染正文。
