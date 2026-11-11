@@ -33,7 +33,7 @@ Date: 2026-11-11 · Bundle: `@local/lifeos@1.0.0` · Installed: yes (`applicatio
 ## 构建与仓库
 
 - [x] `node --check` 通过
-- [x] `node tests/check.mjs` 104 条通过
+- [x] `node tests/check.mjs` 106 条通过
 - [x] CSS 类覆盖 / i18n key 覆盖检查
 - [x] Git 提交、MIT LICENSE、README/README_EN、CHANGELOG、Issue/PR 模板、CI
 - [ ] 真实页面截图（环境无 CDP/鉴权，未完成）

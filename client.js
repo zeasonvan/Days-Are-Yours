@@ -190,6 +190,11 @@ window.__ModuleLoader__.load({
       nothingOnDay: '这一天没有请假记录|No leave on this day',
       leaveHint: '年假余额按工作日扣减，周末与法定假期不计入。|Annual leave is deducted by working days; weekends and holidays do not count.',
       workdaysCount: '{n} 个工作日|{n} working days',
+      plannerMakeup: '含补班日：{dates}|Includes make-up workdays: {dates}',
+      plannerFree: '其中 {n} 天本来就是休息日|{n} of those days were already off',
+      lastDay: '假期最后一天|Last day',
+      retireToday: '今天退休|Retires today',
+      addCountdown: '添加倒计时|Add countdown',
     }
 
     function t(key, params) {
@@ -440,6 +445,7 @@ window.__ModuleLoader__.load({
       base.profile.sex = ['male', 'female55', 'female50'].includes(profile.sex) ? profile.sex : ''
       base.profile.retireMode = profile.retireMode === 'manual' ? 'manual' : 'auto'
       base.profile.retireDate = parseISO(profile.retireDate) ? profile.retireDate : ''
+      if (base.profile.retireMode === 'manual' && !base.profile.retireDate) base.profile.retireMode = 'auto'
       base.profile.flexMonths = [-36, -24, -12, 0, 12, 24, 36].includes(profile.flexMonths) ? profile.flexMonths : 0
       base.profile.careerStart = parseISO(profile.careerStart) ? profile.careerStart : ''
       base.profile.workStart = /^\d{2}:\d{2}$/.test(profile.workStart) ? profile.workStart : '09:00'
@@ -621,7 +627,7 @@ window.__ModuleLoader__.load({
       anchor.href = url
       anchor.download = 'lifeos-' + toISO(new Date()) + '.json'
       anchor.click()
-      URL.revokeObjectURL(url)
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000)
       bumpStat('exports')
     }
 
@@ -1022,11 +1028,11 @@ window.__ModuleLoader__.load({
       return h('section', { className: 'lo-hero' },
         h('div', { className: 'lo-hero-top' },
           h('div', null,
-            h('p', { className: 'lo-hero-label' }, days >= 0 ? t('retireUntil') : t('retireRetired')),
+            h('p', { className: 'lo-hero-label' }, days > 0 ? t('retireUntil') : days === 0 ? t('retireToday') : t('retireRetired')),
             h('div', { className: 'lo-hero-value' },
               h('span', { className: 'lo-hero-num' }, formatInt(days)),
               h('span', { className: 'lo-hero-unit' }, t('days'))),
-            days >= 0
+            days > 0
               ? h('p', { className: 'lo-hero-span' }, t('retireSpan', { span: breakdownText(parts) }))
               : null,
             h('p', { className: 'lo-hero-date' }, t('retireOn', { date: formatDate(info.date) })),
@@ -1048,7 +1054,9 @@ window.__ModuleLoader__.load({
           h('span', { className: 'lo-next-unit' }, t('days'))),
         h('p', { className: 'lo-next-name' }, entry.name),
         h('p', { className: 'lo-next-meta' }, t('holidayRange', { start: monthDay(entry.date), end: monthDay(entry.end) }) + ' · ' + t('holidaySpan', { n: entry.span })),
-        entry.active ? h('p', { className: 'lo-next-active' }, t('holidayLeft', { n: entry.remaining })) : null,
+        entry.active
+          ? h('p', { className: 'lo-next-active' }, entry.remaining === 0 ? t('lastDay') : t('holidayLeft', { n: entry.remaining }))
+          : null,
         entry.work.length ? h('p', { className: 'lo-next-work' }, t('makeupDays', { dates: entry.work.map(monthDay).join('、') })) : null)
     }
 
@@ -1083,6 +1091,7 @@ window.__ModuleLoader__.load({
     }
 
     function CountdownList({ state }) {
+      const [adding, setAdding] = useState(false)
       const [name, setName] = useState('')
       const [date, setDate] = useState('')
       const [yearly, setYearly] = useState(false)
@@ -1093,20 +1102,23 @@ window.__ModuleLoader__.load({
         if (!name.trim()) return setError(t('errName'))
         if (!parseISO(date)) return setError(t('errDate'))
         patch({ countdowns: state.countdowns.concat([{ id: uid('cd'), name: name.trim(), date, yearly }]) })
-        setName(''); setDate(''); setYearly(false); setError('')
+        setName(''); setDate(''); setYearly(false); setError(''); setAdding(false)
       }
 
       return h(Card, {
         title: LANG === 'en' ? 'My countdowns' : '我的倒计时',
-        action: h('span', { className: 'lo-count' }, state.countdowns.length),
+        action: h('div', { className: 'lo-card-actions' },
+          h('span', { className: 'lo-count' }, state.countdowns.length),
+          h('button', { type: 'button', className: 'lo-link', onClick: () => setAdding((value) => !value) }, adding ? t('cancel') : '+ ' + t('addCountdown'))),
       },
-      h('div', { className: 'lo-form lo-form-inline' },
+      adding ? h('div', { className: 'lo-form lo-form-inline' },
         h(Field, { label: t('name') }, h(TextInput, { value: name, onChange: setName, placeholder: LANG === 'en' ? 'e.g. trip to Japan' : '例如：旅行、纪念日' })),
         h(Field, { label: t('datePlaceholder') }, h(DateField, { value: date, onChange: setDate })),
         h('label', { className: 'lo-check' },
           h('input', { type: 'checkbox', checked: yearly, onChange: (event) => setYearly(event.target.checked) }),
           h('span', null, LANG === 'en' ? 'Repeats yearly' : '每年重复')),
-        h(Button, { variant: 'primary', onClick: submit }, t('add'))),
+        h(Button, { variant: 'primary', onClick: submit }, t('add')))
+        : null,
       error ? h('p', { className: 'lo-error' }, error) : null,
       state.countdowns.length === 0
         ? h('p', { className: 'lo-empty' }, t('empty'))
@@ -1368,8 +1380,9 @@ window.__ModuleLoader__.load({
               t('plannerCost', { n: plan.cost }),
               ' · ',
               t('plannerRatio', { n: (Math.round(plan.ratio * 100) / 100).toFixed(2) })),
+            h('div', { className: 'lo-plan-dates' }, t('plannerFree', { n: plan.continuous - plan.cost })),
             h('div', { className: 'lo-plan-dates' }, t('plannerLeaves') + '：' + plan.leaveDates.map(monthDay).join('、')),
-            plan.makeup.length ? h('div', { className: 'lo-plan-warn' }, t('makeupDays', { dates: plan.makeup.map(monthDay).join('、') })) : null))))
+            plan.makeup.length ? h('div', { className: 'lo-plan-warn' }, t('plannerMakeup', { dates: plan.makeup.map(monthDay).join('、') })) : null))))
     }
 
     /* ------------------------------------------------------------------ *
@@ -1562,6 +1575,7 @@ window.__ModuleLoader__.load({
             h('input', {
               type: 'range', min: 0, max: 100, value: goal.progress,
               className: 'lo-range',
+              'aria-label': t('goalProgress'),
               onChange: (event) => patch({ goals: state.goals.map((item) => item.id === goal.id ? Object.assign({}, item, { progress: Number(event.target.value), done: Number(event.target.value) >= 100 }) : item) }),
             }),
             h('div', { className: 'lo-goal-foot' },
@@ -1707,6 +1721,7 @@ window.__ModuleLoader__.load({
 .lo-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
 .lo-card-title{margin:0;font-size:13px;font-weight:600;letter-spacing:.01em}
 .lo-count{font-size:12px;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}
+.lo-card-actions{display:flex;align-items:center;gap:14px}
 .lo-hero-row{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:16px;align-items:stretch}
 .lo-hero-row.lo-hero-single{grid-template-columns:minmax(0,1fr)}
 .lo-hero{display:flex;flex-direction:column;padding:24px 26px 26px;border:1px solid var(--dsw-alias-border-l1);border-radius:22px;background:var(--dsw-alias-bg-base);box-shadow:0 1px 1px rgba(16,24,40,.03),0 10px 26px -18px rgba(16,24,40,.2);overflow:hidden}

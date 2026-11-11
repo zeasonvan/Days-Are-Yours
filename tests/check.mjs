@@ -234,6 +234,8 @@ check('past yearly countdown rolls forward', api.toISO(api.nextOccurrence('2020-
 check('yearly 29 Feb skips to leap year', api.toISO(api.nextOccurrence('2028-02-29', true, today)), '2028-02-29')
 
 /* --- RC: sanitize is idempotent ------------------------------------ */
+check('manual mode without date falls back to auto', api.sanitize({ profile: { retireMode: 'manual', retireDate: '' } }).profile.retireMode, 'auto')
+check('manual mode with date stays manual', api.sanitize({ profile: { retireMode: 'manual', retireDate: '2050-01-01' } }).profile.retireMode, 'manual')
 check('sanitize idempotent', JSON.stringify(api.sanitize(api.sanitize(roundTrip))), JSON.stringify(api.sanitize(roundTrip)))
 
 if (failures.length) {
