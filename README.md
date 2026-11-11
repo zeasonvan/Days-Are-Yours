@@ -35,6 +35,11 @@ plugin_manager install_bundle target=/absolute/path/to/days
 
 > 品牌从 LifeOS 更名为 DAYS 时，**本地存储 key `lifeos/store` 故意保持不变**，升级不会丢数据；旧版导出的 JSON 也仍然可以导入。
 
+## 无法使用 GitHub？
+
+仓库不依赖 GitHub 运行。`./scripts/package.sh` 会生成源码 ZIP、`npm pack` 包和 Git 历史 bundle；
+也可以改用 Gitee / GitLab / 自建 Gitea，或直接传文件安装。完整步骤见 [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md)。想直接发布到 GitHub（建仓库、push、打 tag、发 Release）见 [docs/PUBLISH_GITHUB.md](docs/PUBLISH_GITHUB.md)。
+
 ## 使用
 
 - 首次打开是空状态，去「我的」填写出生日期与性别，退休倒计时立刻出现；也可以切到「手动指定退休日期」。

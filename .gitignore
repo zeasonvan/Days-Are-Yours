@@ -4,3 +4,4 @@ node_modules/
 coverage/
 dist/
 _tmp/
+.npm-cache/
