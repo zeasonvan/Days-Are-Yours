@@ -92,16 +92,16 @@ git push -u gitea main
 
 | 文件 | 用途 |
 | --- | --- |
-| `DAYS-1.5.2-source.zip` | 源码快照（不含 `.git`），发给别人解压即用 |
-| `local-days-1.5.2.tgz` | `npm pack` 产物，解压出 `package/` 目录 |
-| `DAYS-1.5.2-history.bundle` | 完整 Git 历史，可离线克隆/备份 |
+| `DAYS-1.5.3-source.zip` | 源码快照（不含 `.git`），发给别人解压即用 |
+| `local-days-1.5.3.tgz` | `npm pack` 产物，解压出 `package/` 目录 |
+| `DAYS-1.5.3-history.bundle` | 完整 Git 历史，可离线克隆/备份 |
 | `SHA256SUMS` | 三个文件的校验和 |
 
 安装（接收方）：
 
 ```bash
 shasum -a 256 -c SHA256SUMS          # 先校验
-unzip DAYS-1.5.2-source.zip -d Days-Are-Yours
+unzip DAYS-1.5.3-source.zip -d Days-Are-Yours
 # 或在 DSH 会话里让 agent 安装：
 # plugin_manager install_bundle target=/绝对路径/Days-Are-Yours
 ```
@@ -109,14 +109,14 @@ unzip DAYS-1.5.2-source.zip -d Days-Are-Yours
 用 tarball：
 
 ```bash
-tar -xzf local-days-1.5.2.tgz        # 得到 package/
+tar -xzf local-days-1.5.3.tgz        # 得到 package/
 # plugin_manager install_bundle target=/绝对路径/package
 ```
 
 用 bundle 恢复完整历史：
 
 ```bash
-git clone DAYS-1.5.2-history.bundle Days-Are-Yours
+git clone DAYS-1.5.3-history.bundle Days-Are-Yours
 cd Days-Are-Yours
 git remote add origin <以后可用的仓库地址>
 git push -u origin main
@@ -129,7 +129,7 @@ git push -u origin main
 如果有 Verdaccio 或公司 registry：
 
 ```bash
-npm publish dist/local-days-1.5.2.tgz --registry https://npm.example.com
+npm publish dist/local-days-1.5.3.tgz --registry https://npm.example.com
 ```
 
 DAYS 的安装入口是**目录**（`plugin_manager install_bundle target=...`），因此更稳妥的方式仍是
@@ -155,7 +155,7 @@ shasum -a 256 -c dist/SHA256SUMS
 - 不要把 `node_modules/`、`.DS_Store`、`.npm-cache/` 打进发布包（脚本已排除）。
 - 不要把个人数据放进仓库；DAYS 的 `lifeos/store` 数据只在浏览器里。
 - 保留 `.git` 或 `dist/*.bundle`，换平台时历史不会丢。
-- 打标签：`git tag v1.5.2 && git push <remote> v1.5.2`。
+- 打标签：`git tag v1.5.3 && git push <remote> v1.5.3`。
 
 ## 最短路径建议
 

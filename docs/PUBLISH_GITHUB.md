@@ -9,7 +9,7 @@
 cd /path/to/days
 node --check client.js index.js
 node tests/check.mjs            # 应为 149 条全过
-node -p "require('./package.json').version"   # 当前 1.5.2
+node -p "require('./package.json').version"   # 当前 1.5.3
 git status                      # 应为 clean
 ```
 
@@ -24,9 +24,9 @@ ls dist/
 
 | 文件 | 用途 |
 | --- | --- |
-| `local-days-1.5.2.tgz` | `npm pack` 包，解压后是 `package/` 目录 |
-| `DAYS-1.5.2-source.zip` | 源码快照（不含 `.git`） |
-| `DAYS-1.5.2-history.bundle` | 完整 Git 历史，可离线 clone |
+| `local-days-1.5.3.tgz` | `npm pack` 包，解压后是 `package/` 目录 |
+| `DAYS-1.5.3-source.zip` | 源码快照（不含 `.git`） |
+| `DAYS-1.5.3-history.bundle` | 完整 Git 历史，可离线 clone |
 | `SHA256SUMS` | 校验和 |
 
 > `dist/` 已被 `.gitignore` 忽略，不会进入仓库；它只作为 Release 附件或离线分发。
@@ -72,8 +72,8 @@ push 成功后：
 ## 3. 打标签
 
 ```bash
-git tag -a v1.5.2 -m "DAYS v1.5.2"
-git push origin v1.5.2
+git tag -a v1.5.3 -m "DAYS v1.5.3"
+git push origin v1.5.3
 ```
 
 标签用于 Release 与“用户装的是哪一版”的对照；以后每次发版递增（v1.5.3、v1.6.0…）。
@@ -83,13 +83,13 @@ git push origin v1.5.2
 ### 方式 A：网页（推荐，当前机器没装 `gh`）
 
 1. 仓库页右侧 **Releases → Draft a new release**
-2. Choose a tag：`v1.5.2`（第 3 步已推送）
-3. Release title：`DAYS v1.5.2 — Make Every Day Count.`
-4. 描述直接粘贴 `CHANGELOG.md` 里 1.5.2 段落（以及安装说明三行）
+2. Choose a tag：`v1.5.3`（第 3 步已推送）
+3. Release title：`DAYS v1.5.3 — Make Every Day Count.`
+4. 描述直接粘贴 `CHANGELOG.md` 里 1.5.3 段落（以及安装说明三行）
 5. **Attach binaries**：把 `dist/` 下四个文件拖进去
-   - `local-days-1.5.2.tgz`
-   - `DAYS-1.5.2-source.zip`
-   - `DAYS-1.5.2-history.bundle`
+   - `local-days-1.5.3.tgz`
+   - `DAYS-1.5.3-source.zip`
+   - `DAYS-1.5.3-history.bundle`
    - `SHA256SUMS`
 6. 勾选 “Set as the latest release” → **Publish release**
 
@@ -98,8 +98,8 @@ git push origin v1.5.2
 ```bash
 brew install gh
 gh auth login
-gh release create v1.5.2 dist/* \
-  --title "DAYS v1.5.2 — Make Every Day Count." \
+gh release create v1.5.3 dist/* \
+  --title "DAYS v1.5.3 — Make Every Day Count." \
   --notes-file CHANGELOG.md
 ```
 
@@ -118,7 +118,7 @@ git clone https://github.com/<用户名>/Days-Are-Yours.git
 # plugin_manager install_bundle target=/绝对路径/Days-Are-Yours
 ```
 
-或下载 Release 里的 `DAYS-1.5.2-source.zip`，解压后把解压目录作为 target。
+或下载 Release 里的 `DAYS-1.5.3-source.zip`，解压后把解压目录作为 target。
 
 安装后刷新 Harness（⌘R），侧边栏出现 DAYS 图标。
 本地数据 key 仍是 `lifeos/store`，升级不丢数据。

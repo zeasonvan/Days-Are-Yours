@@ -2188,7 +2188,7 @@ window.__ModuleLoader__.load({
           notice ? h('p', { className: 'lo-hint', 'aria-live': 'polite' }, notice) : null),
         h(Card, { title: t('about') },
           h('p', { className: 'lo-hint' }, 'DAYS — Days Are Yours · ' + t('slogan')),
-          h('p', { className: 'lo-hint' }, t('version') + ' 1.5.2 · MIT License')))
+          h('p', { className: 'lo-hint' }, t('version') + ' 1.5.3 · MIT License')))
     }
 
     /* ------------------------------------------------------------------ *

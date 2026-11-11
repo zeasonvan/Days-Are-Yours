@@ -2,11 +2,13 @@
 
 **Make Every Day Count.**
 
+![Version](https://img.shields.io/github/v/tag/zeasonvan/Days-Are-Yours) ![License](https://img.shields.io/github/license/zeasonvan/Days-Are-Yours)
+
 ![DAYS](assets/banner.svg)
 
 DAYS (Days Are Yours) is a personal life assistant plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). It keeps retirement countdowns, statutory holidays, leave planning, a month calendar, off-work and payday countdowns, small daily joys, a wishlist and time capsules in one side-panel.
 
-Repository: **Days-Are-Yours** · Package: `@local/days` · Version: 1.1.0
+Repository: **Days-Are-Yours** · Package: `@local/days` · Version: 1.5.3
 
 All data stays in the browser (`localStorage`). No account, no API key, no telemetry. The optional weather bar sends the chosen city's coordinates to Open-Meteo; with no city set, the app never goes online.
 

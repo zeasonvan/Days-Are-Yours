@@ -2,15 +2,17 @@
 
 **Make Every Day Count.**
 
+![Version](https://img.shields.io/github/v/tag/zeasonvan/Days-Are-Yours) ![License](https://img.shields.io/github/license/zeasonvan/Days-Are-Yours)
+
 ![DAYS](assets/banner.svg)
 
 DAYS（中文：每一天，都属于你）是一个运行在 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 里的个人生活时间助手：退休倒计时、法定假期、请假与拼假、月历、下班/发薪倒计时、每日小乐趣、愿望清单和时间胶囊，收在同一个侧边栏面板里。
 
-仓库名：**Days-Are-Yours** · 插件包：`@local/days` · 版本：1.1.0
+仓库名：**Days-Are-Yours** · 插件包：`@local/days` · 版本：1.5.3
 
 > 数据默认只保存在本机浏览器（`localStorage`），不上传服务器，不需要登录，也不需要 API Key。
 
-## 功能（v1.1）
+## 功能
 
 | 模块 | 已实现 |
 | --- | --- |
@@ -57,7 +59,7 @@ plugin_manager install_bundle target=/absolute/path/to/days
 
 ```
 client.js            # 单文件客户端（DSH 模块加载器格式），按 14 个分区组织
-index.js             # Host 半边：v1.0 无注册
+index.js             # Host 半边：无注册（纯客户端插件）
 tests/check.mjs      # 确定性核心回归（149 条断言）
 docs/                # 审计、架构、数据模型、设计系统、Harness 集成
 ```
@@ -80,7 +82,7 @@ node tests/check.mjs
 
 ## Roadmap
 
-见 [docs/ROADMAP.md](docs/ROADMAP.md)。V1.1 计划接 DSH Tools 实现自然语言操作；工具契约需要在可运行的 Harness 上核验后再实现，当前未注册任何工具。
+见 [docs/ROADMAP.md](docs/ROADMAP.md)。后续计划接 DSH Tools 实现自然语言操作；工具契约需要在可运行的 Harness 上核验后再实现，当前未注册任何工具。
 
 ## License
 
