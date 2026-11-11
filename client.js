@@ -19,7 +19,7 @@ window.__ModuleLoader__.load({
 
     const PANEL_ID = 'days'
     // Deliberately unchanged across the brand rename: existing local data must survive.
-    const STORE_KEY = 'lifeos/store'
+    const STORE_KEY = 'days/store'
     const LEGACY_KEY = 'countdown/store/v1'
     const SCHEMA = 1
     const DAY_MS = 86400000
@@ -689,7 +689,7 @@ window.__ModuleLoader__.load({
     const patchSettings = (partial) => patch({ settings: Object.assign({}, currentState.settings, partial) })
     const bumpStat = (key) => patch({ stats: Object.assign({}, currentState.stats, { [key]: currentState.stats[key] + 1 }) })
 
-    const IMPORT_APPS = ['DAYS', 'LifeOS']
+    const IMPORT_APPS = ['DAYS']
 
     function buildExport(state) {
       return { app: 'DAYS', schema: SCHEMA, exportedAt: new Date().toISOString(), data: state }
@@ -2187,7 +2187,7 @@ window.__ModuleLoader__.load({
           notice ? h('p', { className: 'lo-hint', 'aria-live': 'polite' }, notice) : null),
         h(Card, { title: t('about') },
           h('p', { className: 'lo-hint' }, 'DAYS — Days Are Yours · ' + t('slogan')),
-          h('p', { className: 'lo-hint' }, t('version') + ' 1.5.4 · MIT License')))
+          h('p', { className: 'lo-hint' }, t('version') + ' 1.6.0 · MIT License')))
     }
 
     /* ------------------------------------------------------------------ *

@@ -1,6 +1,6 @@
 # Migration plan
 
-## 数据映射（`countdown/store/v1` → `lifeos/store`）
+## 数据映射（`countdown/store/v1` → `days/store`）
 
 | 旧字段 | 新字段 | 规则 |
 | --- | --- | --- |
@@ -15,7 +15,7 @@
 
 ## 规则
 
-1. 只在 `lifeos/store` 不存在时迁移一次；迁移后不再读取旧 key。
+1. 只在 `days/store` 不存在时迁移一次；迁移后不再读取旧 key。
 2. 旧 key 原样保留，旧插件重新启用后可继续使用。
 3. 迁移后的数据立即通过 `sanitize()` 清洗，非法条目丢弃而不是崩溃。
 4. 导入 JSON 时校验 `app === 'DAYS'`、`schema === 1`、`data.v === 1`。

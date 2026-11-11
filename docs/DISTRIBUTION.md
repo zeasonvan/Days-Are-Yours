@@ -153,7 +153,7 @@ shasum -a 256 -c dist/SHA256SUMS
 ```
 
 - 不要把 `node_modules/`、`.DS_Store`、`.npm-cache/` 打进发布包（脚本已排除）。
-- 不要把个人数据放进仓库；DAYS 的 `lifeos/store` 数据只在浏览器里。
+- 不要把个人数据放进仓库；DAYS 的 `days/store` 数据只在浏览器里。
 - 保留 `.git` 或 `dist/*.bundle`，换平台时历史不会丢。
 - 打标签：`git tag v1.5.3 && git push <remote> v1.5.3`。
 

@@ -121,7 +121,7 @@ git clone https://github.com/<用户名>/Days-Are-Yours.git
 或下载 Release 里的 `DAYS-1.5.3-source.zip`，解压后把解压目录作为 target。
 
 安装后刷新 Harness（⌘R），侧边栏出现 DAYS 图标。
-本地数据 key 仍是 `lifeos/store`，升级不丢数据。
+本地数据 key 仍是 `days/store`，升级不丢数据。
 
 ## 6. 以后每次发版
 
@@ -153,6 +153,6 @@ git push origin vX.Y.Z
 
 ## 8. 安全与体积
 
-- 仓库里没有密钥、Token、个人数据；`lifeos/store` 只存在浏览器。
+- 仓库里没有密钥、Token、个人数据；`days/store` 只存在浏览器。
 - 不要提交 `node_modules/`、`.npm-cache/`、`.DS_Store`（`.gitignore` 已覆盖）。
 - 当前仓库约 1.6 MB，远低于 GitHub 限制，不需要 Git LFS。
