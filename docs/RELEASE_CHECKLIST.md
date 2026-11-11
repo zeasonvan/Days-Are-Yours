@@ -9,7 +9,7 @@ Date: 2026-11-11 · Bundle: `@local/lifeos@1.0.0` · Installed: yes (`applicatio
 | 退休倒计时 / 手动日期 / 弹性 | 通过 | 单元测试 + 逻辑走查 |
 | 自定义倒计时（含每年重复、过期） | 通过 | 单元测试 |
 | 法定假期与补班（2025–2027） | 通过 | 单元测试 + 数据核对 |
-| 年假额度/结转/已用/剩余 | 通过 | 单元测试 |
+| 年假额度/结转/已用/剩余（工作日口径） | 通过 | 单元测试 |
 | 请假记录增删 | 通过 | 代码走查（编辑未实现，见下） |
 | 拼假计算器三种排序 | 通过 | 专项测试（预算、边界、不变量） |
 | 月历标记（假/班/假） | 通过 | 代码走查 + 类覆盖检查 |
@@ -33,7 +33,7 @@ Date: 2026-11-11 · Bundle: `@local/lifeos@1.0.0` · Installed: yes (`applicatio
 ## 构建与仓库
 
 - [x] `node --check` 通过
-- [x] `node tests/check.mjs` 99 条通过
+- [x] `node tests/check.mjs` 104 条通过
 - [x] CSS 类覆盖 / i18n key 覆盖检查
 - [x] Git 提交、MIT LICENSE、README/README_EN、CHANGELOG、Issue/PR 模板、CI
 - [ ] 真实页面截图（环境无 CDP/鉴权，未完成）

@@ -35,7 +35,8 @@ interface LifeOSState {
 
 - 所有日期是本地日历日（无时区偏移），比较用 UTC 毫秒差避免 DST。
 - `sanitize()` 丢弃非法条目而不是抛错；未知字段不保留。
-- 年假余额 = `leaveQuota + leaveCarry - Σ(leaves where countsAsLeave 且开始年份匹配)`。
+- 年假余额 = `leaveQuota + leaveCarry - Σ(workdays(leaves where countsAsLeave 且开始年份匹配))`。
+- 年假按**工作日**扣减：周末与法定假期不计入；调休补班日算工作日。记录的自然日天数仍用于展示。
 - 请假 `days` 为闭区间天数；跨年请假按开始年份计入余额。
 - 假期数据 `HOLIDAY_DATA[year] = [name, firstOffDay, lastOffDay, makeUpDays[]]`，只收录国务院已公布年份；未收录年份只按周末计算，并在 UI 中不伪造假期。
 - 时间胶囊正文只存本地，锁定期间 UI 不渲染正文。

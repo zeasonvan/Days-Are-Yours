@@ -186,6 +186,10 @@ window.__ModuleLoader__.load({
       dataNotice: '2025–2027 数据来自国务院公告的放假安排；最新年份请以官方最终安排为准。|2025–2027 data mirrors State Council notices; the newest year may still change.',
       weekend: '周末|Weekend',
       makeupShort: '班|W',
+      makeupFor: '补班（{name}）|Make-up day for {name}',
+      nothingOnDay: '这一天没有请假记录|No leave on this day',
+      leaveHint: '年假余额按工作日扣减，周末与法定假期不计入。|Annual leave is deducted by working days; weekends and holidays do not count.',
+      workdaysCount: '{n} 个工作日|{n} working days',
     }
 
     function t(key, params) {
@@ -683,11 +687,23 @@ window.__ModuleLoader__.load({
       return diffDays(start, end) + 1
     }
 
+    /** Working days only — weekends and statutory holidays are not deducted. */
+    function leaveWorkDays(leave) {
+      const start = parseISO(leave.start)
+      const end = parseISO(leave.end) || start
+      if (!start) return 0
+      let count = 0
+      for (let cursor = start; diffDays(cursor, end) >= 0; cursor = addDays(cursor, 1)) {
+        if (!isRestDay(cursor)) count += 1
+      }
+      return count
+    }
+
     function leaveStats(state, year) {
       const target = year || new Date().getFullYear()
       const used = state.leaves
         .filter((leave) => leave.countsAsLeave && parseISO(leave.start) && parseISO(leave.start).getFullYear() === target)
-        .reduce((sum, leave) => sum + leaveDays(leave), 0)
+        .reduce((sum, leave) => sum + leaveWorkDays(leave), 0)
       const quota = state.profile.leaveQuota + state.profile.leaveCarry
       return { quota, used, left: quota - used }
     }
@@ -750,13 +766,17 @@ window.__ModuleLoader__.load({
     function minutesFromTime(text) {
       const match = /^(\d{1,2}):(\d{2})$/.exec(text || '')
       if (!match) return null
-      return Number(match[1]) * 60 + Number(match[2])
+      const hours = Number(match[1])
+      const minutes = Number(match[2])
+      if (hours > 23 || minutes > 59) return null
+      return hours * 60 + minutes
     }
 
     function workStatus(profile, now) {
       const workdays = profile.workdays.length ? profile.workdays : [1, 2, 3, 4, 5]
       const dayNumber = now.getDay() === 0 ? 7 : now.getDay()
-      const scheduled = workdays.includes(dayNumber) && !isRestDay(now)
+      const todayInfo = dayInfo(now)
+      const scheduled = (todayInfo.type === 'makeup' || workdays.includes(dayNumber)) && !isRestDay(now)
       const start = minutesFromTime(profile.workStart)
       const end = minutesFromTime(profile.workEnd)
       const minutes = now.getHours() * 60 + now.getMinutes()
@@ -772,7 +792,9 @@ window.__ModuleLoader__.load({
       for (let offset = 0; offset <= 10 && !next; offset += 1) {
         const day = addDays(today, offset)
         const number = day.getDay() === 0 ? 7 : day.getDay()
-        if (!workdays.includes(number) || isRestDay(day)) continue
+        const dayIsMakeup = dayInfo(day).type === 'makeup'
+        if (isRestDay(day)) continue
+        if (!dayIsMakeup && !workdays.includes(number)) continue
         if (offset === 0 && end != null && minutes >= end) continue
         next = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, start || 0)
       }
@@ -948,21 +970,25 @@ window.__ModuleLoader__.load({
     /** Original mascot: a round "time blob" drawn with simple geometry. */
     function Mascot({ size, mood }) {
       const s = size || 64
-      const eye = mood === 'sleepy' ? 1.5 : 2.6
+      const closedEyes = mood === 'sleepy' || mood === 'cozy'
+      const eyeRadius = mood === 'focused' ? 2.0 : 2.6
+      const mouth = mood === 'celebrate'
+        ? 'M25 40c2.6 3.4 4.8 4.8 7 4.8s4.4-1.4 7-4.8'
+        : mood === 'focused'
+          ? 'M28 42h8'
+          : 'M27 41c1.8 1.8 3.4 2.6 5 2.6s3.2-.8 5-2.6'
       return h('svg', {
         width: s, height: s, viewBox: '0 0 64 64', 'aria-hidden': true,
         style: { display: 'block', flex: 'none' },
       },
       h('circle', { cx: 32, cy: 34, r: 22, fill: '#F5F0E6' }),
       h('circle', { cx: 32, cy: 34, r: 22, fill: 'none', stroke: '#E8B88F', strokeWidth: 2.2, opacity: 0.7 }),
-      mood === 'sleepy'
+      closedEyes
         ? h('path', { d: 'M24 33c1.4-1.2 3.6-1.2 5 0M35 33c1.4-1.2 3.6-1.2 5 0', stroke: '#354B43', strokeWidth: 2, strokeLinecap: 'round', fill: 'none' })
         : h('g', null,
-          h('circle', { cx: 26, cy: 32, r: eye, fill: '#354B43' }),
-          h('circle', { cx: 38, cy: 32, r: eye, fill: '#354B43' })),
-      mood === 'celebrate'
-        ? h('path', { d: 'M26 41c2.2 3 4.2 4.2 6 4.2s3.8-1.2 6-4.2', stroke: '#354B43', strokeWidth: 2.4, strokeLinecap: 'round', fill: 'none' })
-        : h('path', { d: 'M27 41c1.8 1.8 3.4 2.6 5 2.6s3.2-.8 5-2.6', stroke: '#354B43', strokeWidth: 2.2, strokeLinecap: 'round', fill: 'none' }),
+          h('circle', { cx: 26, cy: 32, r: eyeRadius, fill: '#354B43' }),
+          h('circle', { cx: 38, cy: 32, r: eyeRadius, fill: '#354B43' })),
+      h('path', { d: mouth, stroke: '#354B43', strokeWidth: mood === 'celebrate' ? 2.4 : 2.2, strokeLinecap: 'round', fill: 'none' }),
       h('circle', { cx: 20, cy: 38, r: 3, fill: '#E9D9CE' }),
       h('circle', { cx: 44, cy: 38, r: 3, fill: '#E9D9CE' }))
     }
@@ -1202,13 +1228,15 @@ window.__ModuleLoader__.load({
           h('span', null, h('i', { className: 'lo-dot lo-dot-work' }), t('legendMakeup')))),
         selected
           ? h(Card, { title: formatDate(selected) + ' · ' + weekdayName(selected) },
-            info && info.name ? h('p', { className: 'lo-note' }, info.type === 'makeup' ? t('makeupDays', { dates: info.name }) : info.name) : null,
+            info && info.name
+              ? h('p', { className: 'lo-note' }, info.type === 'makeup' ? t('makeupFor', { name: info.name }) : info.name)
+              : null,
             selectedLeaves.length
               ? h('ul', { className: 'lo-list' }, selectedLeaves.map((leave) => h('li', { key: leave.id, className: 'lo-row' },
                 h('div', { className: 'lo-row-main' },
                   h('span', { className: 'lo-row-name' }, leave.name),
                   h('span', { className: 'lo-row-meta' }, leaveTypeLabel(leave.type) + ' · ' + formatDate(parseISO(leave.start)) + ' – ' + formatDate(parseISO(leave.end) || parseISO(leave.start)))))))
-              : h('p', { className: 'lo-empty' }, t('empty')))
+              : h('p', { className: 'lo-empty' }, t('nothingOnDay')))
           : null,
         h(LeaveSection, { state, now }),
         h(YearHolidays, { year: viewYear, rows }),
@@ -1259,6 +1287,7 @@ window.__ModuleLoader__.load({
           h('input', { type: 'checkbox', checked: draft.countsAsLeave, onChange: (event) => setDraft(Object.assign({}, draft, { countsAsLeave: event.target.checked })) }),
           h('span', null, t('countsAsLeave'))),
         h(Button, { variant: 'primary', onClick: submit }, t('addLeave'))),
+      h('p', { className: 'lo-hint' }, t('leaveHint')),
       error ? h('p', { className: 'lo-error' }, error) : null,
       state.leaves.length === 0
         ? h('p', { className: 'lo-empty' }, t('leaveEmpty'))
@@ -1267,7 +1296,8 @@ window.__ModuleLoader__.load({
             h('span', { className: 'lo-row-name' }, leave.name,
               leave.countsAsLeave ? h('em', { className: 'lo-chip' }, LANG === 'en' ? 'leave' : '年假') : null),
             h('span', { className: 'lo-row-meta' },
-              leaveTypeLabel(leave.type) + ' · ' + formatDate(parseISO(leave.start)) + ' – ' + formatDate(parseISO(leave.end) || parseISO(leave.start)))),
+              leaveTypeLabel(leave.type) + ' · ' + formatDate(parseISO(leave.start)) + ' – ' + formatDate(parseISO(leave.end) || parseISO(leave.start))
+              + (leave.countsAsLeave ? ' · ' + t('workdaysCount', { n: leaveWorkDays(leave) }) : ''))),
           h('span', { className: 'lo-row-days' }, leaveDays(leave), h('em', null, t('days'))),
           h('button', { type: 'button', className: 'lo-link lo-danger', onClick: () => patch({ leaves: state.leaves.filter((item) => item.id !== leave.id) }) }, t('delete'))))))
     }
@@ -1420,6 +1450,7 @@ window.__ModuleLoader__.load({
       const fileRef = useRef(null)
       const [opened, setOpened] = useState([])
       const [importError, setImportError] = useState('')
+      const [notice, setNotice] = useState('')
       const [goalDraft, setGoalDraft] = useState({ title: '', category: 'life', target: '' })
       const [capsuleDraft, setCapsuleDraft] = useState({ title: '', unlockDate: '', body: '' })
       const [capsuleError, setCapsuleError] = useState('')
@@ -1447,9 +1478,11 @@ window.__ModuleLoader__.load({
           if (window.confirm(t('confirmImport'))) {
             commit(next)
             setImportError('')
+            setNotice(t('saved'))
           }
         } catch (error) {
           setImportError(t('errImport'))
+          setNotice('')
         }
         event.target.value = ''
       }
@@ -1564,11 +1597,12 @@ window.__ModuleLoader__.load({
         h(Card, { title: t('data') },
           h('p', { className: 'lo-hint' }, t('dataHint')),
           h('div', { className: 'lo-actions' },
-            h(Button, { onClick: exportData }, t('exportJson')),
+            h(Button, { onClick: () => { exportData(); setNotice(t('saved')) } }, t('exportJson')),
             h(Button, { onClick: () => fileRef.current && fileRef.current.click() }, t('importJson')),
             h(Button, { variant: 'ghost', onClick: () => { if (window.confirm(t('confirmReset'))) resetData() } }, t('resetData'))),
           h('input', { type: 'file', accept: 'application/json', ref: fileRef, style: { display: 'none' }, onChange: onFile }),
-          importError ? h('p', { className: 'lo-error' }, importError) : null),
+          importError ? h('p', { className: 'lo-error' }, importError) : null,
+          notice ? h('p', { className: 'lo-hint', 'aria-live': 'polite' }, notice) : null),
         h(Card, { title: t('about') },
           h('p', { className: 'lo-hint' }, 'LifeOS · ' + t('slogan')),
           h('p', { className: 'lo-hint' }, t('version') + ' 1.0.0 · MIT License')))
@@ -1863,7 +1897,7 @@ window.__ModuleLoader__.load({
         defaultState, sanitize, migrateLegacy, parseISO, parseAnyDate, toISO, diffDays, addDays,
         breakdown, monthDay, retirementInfo, delayMonthsFor, addMonths, RETIRE_RULES,
         buildExport, parseImport, holidayPeriods, HOLIDAY_DATA, dayInfo, isRestDay, nextOccurrence,
-        customCountdowns, lifeEntries, leaveDays, leaveStats, planLeave, workStatus, nextPayday,
+        customCountdowns, lifeEntries, leaveDays, leaveWorkDays, leaveStats, planLeave, workStatus, nextPayday,
         dailyFun, petLevel, petMood, monthGrid, ACHIEVEMENTS, withAchievements, hashString,
       },
       apply(ctx) {
