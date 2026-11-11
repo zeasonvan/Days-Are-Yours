@@ -1,6 +1,6 @@
 {
   "name": "@local/days",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "private": true,
   "type": "module",
   "description": "DAYS — a playful personal life assistant for countdowns, holidays, leave planning, memories and everyday joy.",
