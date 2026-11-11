@@ -1,0 +1,3 @@
+- insert:
+    - id: lifeos
+      name: '@local/lifeos'

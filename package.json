@@ -1,0 +1,33 @@
+{
+  "name": "@local/lifeos",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "LifeOS — a playful personal life assistant for countdowns, holidays, leave planning and everyday joy.",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "README_EN.md",
+    "LICENSE",
+    "locale/*.json",
+    "icon.svg",
+    "docs",
+    "assets"
+  ],
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": ["@deepseek-ai/dsh-client-ui-sidebar"]
+    }
+  }
+}

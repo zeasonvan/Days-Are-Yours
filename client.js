@@ -1,0 +1,1837 @@
+/**
+ * LifeOS client half — make every day count.
+ *
+ * One panel ("main" key = lifeos) reached from the sidebar glyph, with four
+ * tabs: Home, Calendar, Fun and Me. All state is local-first and lives in
+ * localStorage under `lifeos/store`; the legacy `countdown/store/v1` payload is
+ * migrated once and never modified.
+ *
+ * Sections below: copy, dates, retirement policy, holiday data, store,
+ * engines, views, styles, registration.
+ */
+
+window.__ModuleLoader__.load({
+  id: '@local/lifeos',
+  factory(require) {
+    const React = require('react')
+    const h = React.createElement
+    const { useState, useEffect, useRef } = React
+
+    const PANEL_ID = 'lifeos'
+    const STORE_KEY = 'lifeos/store'
+    const LEGACY_KEY = 'countdown/store/v1'
+    const SCHEMA = 1
+    const DAY_MS = 86400000
+
+    /* ------------------------------------------------------------------ *
+     * 1. Copy — "中文|English", picked at render time
+     * ------------------------------------------------------------------ */
+
+    let LANG = 'zh'
+
+    const COPY = {
+      appName: 'LifeOS|LifeOS',
+      slogan: '让每一天都有值得期待的事情。|Make Every Day Count.',
+      tabHome: '首页|Home',
+      tabCalendar: '日历|Calendar',
+      tabFun: '趣味|Fun',
+      tabMe: '我的|Me',
+      settings: '设置|Settings',
+      retry: '重试|Retry',
+      save: '保存|Save',
+      cancel: '取消|Cancel',
+      add: '添加|Add',
+      edit: '编辑|Edit',
+      delete: '删除|Delete',
+      name: '名称|Name',
+      start: '开始|Start',
+      end: '结束|End',
+      note: '备注|Note',
+      type: '类型|Type',
+      days: '天|days',
+      day: '天|day',
+      today: '今天|Today',
+      datePlaceholder: 'YYYY-MM-DD|YYYY-MM-DD',
+      none: '未设置|Not set',
+      empty: '还没有内容|Nothing here yet',
+      confirmDelete: '确认删除？|Delete this?',
+      saved: '已保存|Saved',
+
+      retireTitle: '退休倒计时|Retirement',
+      retireUntil: '距离退休|Until retirement',
+      retireRetired: '已退休|Retired',
+      retireSpan: '还有 {span}|{span} to go',
+      retireOn: '{date} 退休|Retires {date}',
+      retireManual: '手动指定退休日期|Manually set retirement date',
+      retireAuto: '按政策自动推算|Derived from policy',
+      retireSetup: '填写出生信息|Set birth details',
+      retireEmpty: '填写出生日期和性别后，这里会显示退休倒计时。|Enter birth date and sex to see the retirement countdown.',
+      birthDate: '出生日期|Date of birth',
+      sex: '性别|Sex',
+      sexUnset: '请选择|Select',
+      sexMale: '男|Male',
+      sexFemale55: '女（管理/技术岗）|Female (management/technical)',
+      sexFemale50: '女（工人岗）|Female (manual worker)',
+      retireDate: '退休日期|Retirement date',
+      flex: '弹性退休|Flexible retirement',
+      flexNone: '按法定年龄|Statutory age',
+      flexEarly: '提前 {n} 年|{n} yr earlier',
+      flexLate: '延迟 {n} 年|{n} yr later',
+      careerStart: '入职日期|Career start',
+
+      nextHoliday: '下一个假期|Next holiday',
+      onHoliday: '正在放假|On holiday',
+      holidayLeft: '还剩 {n} 天|{n} days left',
+      holidayRange: '{start} – {end}|{start} – {end}',
+      holidaySpan: '{n} 天假期|{n} days off',
+      makeupDays: '补班 {dates}|Make-up days {dates}',
+      holidaysTitle: '法定假期|Public holidays',
+      showHolidays: '显示法定假期|Show public holidays',
+      allHolidays: '全年假期|This year',
+      yearsData: '数据覆盖 {range}|Data covers {range}',
+
+      leaveTitle: '年假与请假|Annual leave',
+      leaveQuota: '年假额度|Annual quota',
+      leaveCarry: '上年结转|Carried over',
+      leaveUsed: '已用|Used',
+      leaveLeft: '剩余|Left',
+      addLeave: '添加请假|Add leave',
+      leaveType: '假期类型|Leave type',
+      leaveCustom: '自定义|Custom',
+      countsAsLeave: '计入年假|Counts as annual leave',
+      leaveEmpty: '还没有请假记录|No leave recorded yet',
+      planner: '拼假计算器|Leave planner',
+      plannerBudget: '可用年假|Leave budget',
+      plannerWindow: '搜索范围|Search window',
+      plannerRun: '计算方案|Plan it',
+      plannerLongest: '连续休息最长|Longest break',
+      plannerCheapest: '消耗最少|Cheapest',
+      plannerBest: '收益最高|Best value',
+      plannerResult: '连续休息 {n} 天|{n} days off in a row',
+      plannerCost: '消耗 {n} 天年假|{n} leave days',
+      plannerRatio: '收益率 {n}x|Efficiency {n}x',
+      plannerLeaves: '请假日期|Leave dates',
+      plannerEmpty: '没有找到符合条件的方案|No plan fits these limits',
+      plannerHint: '按年假、法定假期与调休工作日计算|Uses leave, public holidays and make-up workdays',
+
+      calendarTitle: '生活日历|Calendar',
+      monthPrev: '上个月|Previous month',
+      monthNext: '下个月|Next month',
+      legendHoliday: '假期|Holiday',
+      legendLeave: '请假|Leave',
+      legendMakeup: '补班|Make-up',
+
+      funTitle: '快乐研究所|Fun Lab',
+      workCountdown: '下班倒计时|Off-work countdown',
+      workUntil: '距离下班|Until off work',
+      workStartIn: '距离上班|Until work starts',
+      dayOff: '今天休息|Day off today',
+      weekendIn: '距离周末|Until weekend',
+      payday: '发薪日|Payday',
+      paydayIn: '距离发薪|Until payday',
+      slackIndex: '摸鱼指数|Slack index',
+      coffeeIndex: '咖啡指数|Coffee index',
+      moodIndex: '今日心情|Mood',
+      forFun: '纯属娱乐|For fun only',
+      quote: '今日语录|Daily quote',
+      petTitle: '时光团子|Time Blob',
+      petLevel: '等级 {n}|Level {n}',
+      petXp: '经验 {n}|XP {n}',
+      petAction: '摸摸团子|Pet the blob',
+      petHint: '轻轻点一下，不会掉经验|A gentle tap, nothing is lost',
+      achievements: '成就|Achievements',
+      locked: '未解锁|Locked',
+
+      profile: '个人资料|Profile',
+      namePlaceholder: '怎么称呼你|What should we call you',
+      workSchedule: '工作时间|Work schedule',
+      workStart: '上班时间|Work starts',
+      workEnd: '下班时间|Off work',
+      workdays: '工作日|Workdays',
+      salaryDay: '发薪日（每月）|Payday (monthly)',
+      language: '语言|Language',
+      goals: '愿望清单|Wishlist',
+      goalTitle: '愿望|Wish',
+      goalTarget: '目标日期|Target date',
+      goalProgress: '进度|Progress',
+      goalDone: '已完成|Done',
+      goalAdd: '添加愿望|Add a wish',
+      goalEmpty: '写下想做的事，给未来一个理由|Write down something worth looking forward to',
+      capsules: '时间胶囊|Time capsule',
+      capsuleLocked: '锁定中，{date} 后可打开|Locked until {date}',
+      capsuleOpen: '可以打开了|Ready to open',
+      capsuleUnlock: '打开|Open',
+      capsuleAdd: '写给未来的自己|Write to future you',
+      capsuleBody: '写点什么|Write something',
+      capsuleEmpty: '给未来的自己留一封信|Leave a letter for future you',
+      data: '数据|Data',
+      exportJson: '导出 JSON|Export JSON',
+      importJson: '导入 JSON|Import JSON',
+      resetData: '清空本地数据|Reset local data',
+      dataHint: '所有数据只保存在这台设备的浏览器里|Everything stays in this browser',
+      about: '关于|About',
+      version: '版本|Version',
+
+      errName: '请填写名称|Enter a name',
+      errDate: '请填写有效日期|Enter a valid date',
+      errRange: '结束日期不能早于开始日期|End date cannot be before start',
+      errBudget: '年假天数需要大于 0|Budget must be greater than 0',
+      errImport: '文件格式不正确|Unsupported file',
+      confirmReset: '将清空这台设备上的 LifeOS 数据，确定吗？|This clears LifeOS data on this device. Continue?',
+      muted: '已过期|Past',
+    }
+
+    function t(key, params) {
+      const entry = COPY[key]
+      if (!entry) return key
+      const parts = entry.split('|')
+      let text = LANG === 'en' ? (parts[1] || parts[0]) : parts[0]
+      if (params) for (const name of Object.keys(params)) text = text.split('{' + name + '}').join(String(params[name]))
+      return text
+    }
+
+    function setLang(lang) { LANG = lang === 'en' ? 'en' : 'zh' }
+
+    /* ------------------------------------------------------------------ *
+     * 2. Dates
+     * ------------------------------------------------------------------ */
+
+    const pad2 = (value) => String(value).padStart(2, '0')
+    const toISO = (date) => date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate())
+    const startOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate())
+
+    function parseISO(text) {
+      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(typeof text === 'string' ? text : '')
+      if (!match) return null
+      const year = Number(match[1]); const month = Number(match[2]); const day = Number(match[3])
+      const date = new Date(year, month - 1, day)
+      if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null
+      return date
+    }
+
+    function parseAnyDate(text) {
+      const raw = String(text || '').trim()
+      if (!raw) return null
+      let match = /^(\d{4})\s*[-/.]\s*(\d{1,2})\s*[-/.]\s*(\d{1,2})$/.exec(raw)
+      if (!match) match = /^(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日?$/.exec(raw)
+      if (!match) match = /^(\d{4})(\d{2})(\d{2})$/.exec(raw)
+      if (!match) return null
+      const year = Number(match[1]); const month = Number(match[2]); const day = Number(match[3])
+      const date = new Date(year, month - 1, day)
+      if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null
+      return date
+    }
+
+    function diffDays(from, to) {
+      const a = Date.UTC(from.getFullYear(), from.getMonth(), from.getDate())
+      const b = Date.UTC(to.getFullYear(), to.getMonth(), to.getDate())
+      return Math.round((b - a) / DAY_MS)
+    }
+    const addDays = (date, count) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + count)
+    const formatInt = (value) => Math.abs(Math.round(value)).toLocaleString(LANG === 'en' ? 'en-US' : 'zh-CN')
+
+    function formatDate(date) {
+      return LANG === 'en' ? toISO(date) : date.getFullYear() + '年' + (date.getMonth() + 1) + '月' + date.getDate() + '日'
+    }
+    function monthDay(date) {
+      return LANG === 'en' ? (date.getMonth() + 1) + '/' + date.getDate() : (date.getMonth() + 1) + '月' + date.getDate() + '日'
+    }
+    function weekdayName(date) {
+      const zh = ['日', '一', '二', '三', '四', '五', '六']
+      const en = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+      return LANG === 'en' ? en[date.getDay()] : '周' + zh[date.getDay()]
+    }
+    function addMonths(date, months) {
+      const total = date.getFullYear() * 12 + date.getMonth() + months
+      const year = Math.floor(total / 12)
+      const month = total - year * 12
+      const lastDay = new Date(year, month + 1, 0).getDate()
+      return new Date(year, month, Math.min(date.getDate(), lastDay))
+    }
+
+    function breakdown(from, to) {
+      let years = to.getFullYear() - from.getFullYear()
+      let months = to.getMonth() - from.getMonth()
+      let days = to.getDate() - from.getDate()
+      if (days < 0) { months -= 1; days += new Date(to.getFullYear(), to.getMonth(), 0).getDate() }
+      if (months < 0) { years -= 1; months += 12 }
+      return { years, months, days }
+    }
+
+    function breakdownText(parts) {
+      const segments = []
+      const zh = LANG !== 'en'
+      if (parts.years > 0) segments.push(zh ? parts.years + ' 年' : parts.years + ' yr')
+      if (parts.months > 0) segments.push(zh ? parts.months + ' 个月' : parts.months + ' mo')
+      if (parts.days > 0 || segments.length === 0) segments.push(zh ? parts.days + ' 天' : parts.days + ' d')
+      return segments.join(' ')
+    }
+
+    /* ------------------------------------------------------------------ *
+     * 3. Retirement policy (China, phased reform from 2025-01-01)
+     * ------------------------------------------------------------------ */
+
+    const RETIRE_RULES = {
+      male: { baseYears: 60, stepMonths: 4, capMonths: 36, startYear: 1965 },
+      female55: { baseYears: 55, stepMonths: 4, capMonths: 36, startYear: 1970 },
+      female50: { baseYears: 50, stepMonths: 2, capMonths: 60, startYear: 1975 },
+    }
+
+    function delayMonthsFor(rule, birth) {
+      const monthsSince = (birth.getFullYear() - rule.startYear) * 12 + birth.getMonth()
+      if (monthsSince < 0) return 0
+      return Math.min(rule.capMonths, Math.floor(monthsSince / rule.stepMonths) + 1)
+    }
+
+    function retirementInfo(profile) {
+      if (profile.retireMode === 'manual') {
+        const manual = parseISO(profile.retireDate)
+        if (manual) return { date: manual, manual: true }
+      }
+      const birth = parseISO(profile.birthDate)
+      const rule = RETIRE_RULES[profile.sex]
+      if (!birth || !rule) return null
+      const statutory = rule.baseYears * 12 + delayMonthsFor(rule, birth)
+      const flex = Number.isFinite(profile.flexMonths) ? profile.flexMonths : 0
+      const effective = Math.max(rule.baseYears * 12, Math.min(statutory + flex, statutory + 36))
+      return { date: addMonths(birth, effective), manual: false, statutoryMonths: statutory, effectiveMonths: effective }
+    }
+
+    /* ------------------------------------------------------------------ *
+     * 4. Holiday data — State Council notices, bundled offline
+     *    [name, first off day, last off day, make-up workdays]
+     * ------------------------------------------------------------------ */
+
+    const HOLIDAY_DATA = {
+      2025: [
+        ['元旦', '2025-01-01', '2025-01-01', []],
+        ['春节', '2025-01-28', '2025-02-04', ['2025-01-26', '2025-02-08']],
+        ['清明', '2025-04-04', '2025-04-06', []],
+        ['劳动节', '2025-05-01', '2025-05-05', ['2025-04-27']],
+        ['端午', '2025-05-31', '2025-06-02', []],
+        ['国庆节、中秋', '2025-10-01', '2025-10-08', ['2025-09-28', '2025-10-11']],
+      ],
+      2026: [
+        ['元旦', '2026-01-01', '2026-01-03', ['2026-01-04']],
+        ['春节', '2026-02-15', '2026-02-23', ['2026-02-14', '2026-02-28']],
+        ['清明', '2026-04-04', '2026-04-06', []],
+        ['劳动节', '2026-05-01', '2026-05-05', ['2026-05-09']],
+        ['端午', '2026-06-19', '2026-06-21', []],
+        ['中秋', '2026-09-25', '2026-09-27', []],
+        ['国庆节', '2026-10-01', '2026-10-07', ['2026-09-20', '2026-10-10']],
+      ],
+      2027: [
+        ['元旦', '2027-01-01', '2027-01-03', []],
+        ['春节', '2027-02-05', '2027-02-13', ['2027-01-31', '2027-02-14']],
+        ['清明', '2027-04-03', '2027-04-05', []],
+        ['劳动节', '2027-05-01', '2027-05-05', ['2027-05-08']],
+        ['端午', '2027-06-09', '2027-06-09', []],
+        ['中秋', '2027-09-15', '2027-09-15', []],
+        ['国庆节', '2027-10-01', '2027-10-07', ['2027-09-26', '2027-10-09']],
+      ],
+    }
+
+    const HOLIDAY_YEARS = Object.keys(HOLIDAY_DATA).map(Number)
+    const yearMaps = new Map()
+
+    function mapsForYear(year) {
+      if (yearMaps.has(year)) return yearMaps.get(year)
+      const off = new Map()
+      const work = new Map()
+      const rows = HOLIDAY_DATA[year] || []
+      for (const row of rows) {
+        let cursor = parseISO(row[1])
+        const end = parseISO(row[2])
+        while (cursor && end && cursor <= end) {
+          off.set(toISO(cursor), row[0])
+          cursor = addDays(cursor, 1)
+        }
+        for (const day of row[3]) work.set(day, row[0])
+      }
+      const maps = { off, work, hasData: rows.length > 0 }
+      yearMaps.set(year, maps)
+      return maps
+    }
+
+    /** 'holiday' | 'weekend' | 'makeup' | 'work' */
+    function dayInfo(date) {
+      const iso = toISO(date)
+      const maps = mapsForYear(date.getFullYear())
+      if (maps.work.has(iso)) return { type: 'makeup', name: maps.work.get(iso) }
+      if (maps.off.has(iso)) return { type: 'holiday', name: maps.off.get(iso) }
+      const day = date.getDay()
+      return { type: day === 0 || day === 6 ? 'weekend' : 'work' }
+    }
+
+    const isRestDay = (date) => {
+      const type = dayInfo(date).type
+      return type === 'holiday' || type === 'weekend'
+    }
+
+    /** Upcoming statutory holiday periods, real ranges with make-up days. */
+    function holidayPeriods(today) {
+      const year = today.getFullYear()
+      if (!HOLIDAY_DATA[year] && !HOLIDAY_DATA[year + 1]) return []
+      const items = []
+      for (let cursor = year; cursor <= year + 1; cursor += 1) {
+        const rows = HOLIDAY_DATA[cursor]
+        if (!rows) continue
+        rows.forEach((row, index) => {
+          const start = parseISO(row[1])
+          const end = parseISO(row[2])
+          const days = diffDays(today, start)
+          const active = diffDays(start, today) >= 0 && diffDays(today, end) >= 0
+          items.push({
+            id: 'hol-' + cursor + '-' + index,
+            kind: 'holiday',
+            name: row[0],
+            date: start,
+            end,
+            span: diffDays(start, end) + 1,
+            days,
+            active,
+            remaining: active ? diffDays(today, end) : 0,
+            work: row[3].map(parseISO).filter((date) => diffDays(today, date) >= 0),
+          })
+        })
+      }
+      items.sort((a, b) => (a.active ? -1 : a.days) - (b.active ? -1 : b.days))
+      return items.filter((item) => item.days >= 0 || item.active)
+    }
+
+    /* ------------------------------------------------------------------ *
+     * 5. Storage — local-first, versioned, legacy-safe
+     * ------------------------------------------------------------------ */
+
+    const uid = (prefix) => prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
+
+    function defaultState() {
+      return {
+        v: SCHEMA,
+        profile: {
+          name: '', birthDate: '', sex: '', retireMode: 'auto', retireDate: '', flexMonths: 0,
+          careerStart: '', workStart: '09:00', workEnd: '18:00', workdays: [1, 2, 3, 4, 5],
+          salaryDay: '', leaveQuota: 5, leaveCarry: 0,
+        },
+        countdowns: [], leaves: [], goals: [], capsules: [],
+        pet: { xp: 0, lastPet: '' },
+        achievements: {}, stats: { plannerRuns: 0, exports: 0, visits: 0 },
+        settings: { lang: 'zh', showHolidays: true, tab: 'home' },
+      }
+    }
+
+    function sanitize(raw) {
+      const base = defaultState()
+      const source = raw && typeof raw === 'object' ? raw : {}
+      const profile = source.profile && typeof source.profile === 'object' ? source.profile : {}
+      base.profile.name = typeof profile.name === 'string' ? profile.name : ''
+      base.profile.birthDate = parseISO(profile.birthDate) ? profile.birthDate : ''
+      base.profile.sex = ['male', 'female55', 'female50'].includes(profile.sex) ? profile.sex : ''
+      base.profile.retireMode = profile.retireMode === 'manual' ? 'manual' : 'auto'
+      base.profile.retireDate = parseISO(profile.retireDate) ? profile.retireDate : ''
+      base.profile.flexMonths = [-36, -24, -12, 0, 12, 24, 36].includes(profile.flexMonths) ? profile.flexMonths : 0
+      base.profile.careerStart = parseISO(profile.careerStart) ? profile.careerStart : ''
+      base.profile.workStart = /^\d{2}:\d{2}$/.test(profile.workStart) ? profile.workStart : '09:00'
+      base.profile.workEnd = /^\d{2}:\d{2}$/.test(profile.workEnd) ? profile.workEnd : '18:00'
+      base.profile.workdays = Array.isArray(profile.workdays)
+        ? profile.workdays.filter((day) => Number.isInteger(day) && day >= 1 && day <= 7)
+        : [1, 2, 3, 4, 5]
+      base.profile.salaryDay = Number.isInteger(profile.salaryDay) && profile.salaryDay >= 1 && profile.salaryDay <= 28 ? profile.salaryDay : ''
+      base.profile.leaveQuota = Number.isFinite(profile.leaveQuota) && profile.leaveQuota >= 0 ? profile.leaveQuota : 5
+      base.profile.leaveCarry = Number.isFinite(profile.leaveCarry) && profile.leaveCarry >= 0 ? profile.leaveCarry : 0
+
+      base.countdowns = Array.isArray(source.countdowns) ? source.countdowns
+        .filter((item) => item && typeof item.name === 'string' && parseISO(item.date))
+        .map((item) => ({ id: item.id || uid('cd'), name: item.name, date: item.date, yearly: !!item.yearly })) : []
+
+      base.leaves = Array.isArray(source.leaves) ? source.leaves
+        .filter((item) => item && typeof item.name === 'string' && parseISO(item.start))
+        .map((item) => ({
+          id: item.id || uid('lv'),
+          type: typeof item.type === 'string' ? item.type : 'custom',
+          name: item.name,
+          start: item.start,
+          end: parseISO(item.end) ? item.end : item.start,
+          countsAsLeave: !!item.countsAsLeave,
+          note: typeof item.note === 'string' ? item.note : '',
+        })) : []
+
+      base.goals = Array.isArray(source.goals) ? source.goals
+        .filter((item) => item && typeof item.title === 'string')
+        .map((item) => ({
+          id: item.id || uid('goal'),
+          title: item.title,
+          category: typeof item.category === 'string' ? item.category : 'life',
+          target: parseISO(item.target) ? item.target : '',
+          progress: Math.max(0, Math.min(100, Number.isFinite(item.progress) ? item.progress : 0)),
+          done: !!item.done,
+          note: typeof item.note === 'string' ? item.note : '',
+        })) : []
+
+      base.capsules = Array.isArray(source.capsules) ? source.capsules
+        .filter((item) => item && typeof item.title === 'string' && typeof item.body === 'string' && parseISO(item.unlockDate))
+        .map((item) => ({
+          id: item.id || uid('cap'),
+          title: item.title,
+          body: item.body,
+          unlockDate: item.unlockDate,
+          createdAt: item.createdAt || toISO(new Date()),
+        })) : []
+
+      const pet = source.pet && typeof source.pet === 'object' ? source.pet : {}
+      base.pet.xp = Number.isFinite(pet.xp) && pet.xp >= 0 ? pet.xp : 0
+      base.pet.lastPet = typeof pet.lastPet === 'string' ? pet.lastPet : ''
+
+      const stats = source.stats && typeof source.stats === 'object' ? source.stats : {}
+      base.stats.plannerRuns = Number.isFinite(stats.plannerRuns) ? stats.plannerRuns : 0
+      base.stats.exports = Number.isFinite(stats.exports) ? stats.exports : 0
+      base.stats.visits = Number.isFinite(stats.visits) ? stats.visits : 0
+
+      const settings = source.settings && typeof source.settings === 'object' ? source.settings : {}
+      base.settings.lang = settings.lang === 'en' ? 'en' : 'zh'
+      base.settings.showHolidays = settings.showHolidays !== false
+      base.settings.tab = ['home', 'calendar', 'fun', 'me'].includes(settings.tab) ? settings.tab : 'home'
+
+      if (source.achievements && typeof source.achievements === 'object') {
+        for (const key of Object.keys(source.achievements)) {
+          if (typeof source.achievements[key] === 'string') base.achievements[key] = source.achievements[key]
+        }
+      }
+      return base
+    }
+
+    /** Map the legacy countdown plugin payload without touching its key. */
+    function migrateLegacy(legacy) {
+      const next = defaultState()
+      if (!legacy || typeof legacy !== 'object') return next
+      next.profile.birthDate = parseISO(legacy.birthDate) ? legacy.birthDate : ''
+      next.profile.sex = ['male', 'female55', 'female50'].includes(legacy.sex) ? legacy.sex : ''
+      next.profile.flexMonths = [-36, -24, -12, 0, 12, 24, 36].includes(legacy.flexMonths) ? legacy.flexMonths : 0
+      next.profile.careerStart = parseISO(legacy.careerStart) ? legacy.careerStart : ''
+      if (parseISO(legacy.retireDate)) {
+        next.profile.retireMode = 'manual'
+        next.profile.retireDate = legacy.retireDate
+      }
+      next.settings.lang = legacy.lang === 'en' ? 'en' : 'zh'
+      next.settings.showHolidays = legacy.showBuiltin !== false
+      next.leaves = (Array.isArray(legacy.customs) ? legacy.customs : [])
+        .filter((item) => item && typeof item.name === 'string' && parseISO(item.start))
+        .map((item) => ({
+          id: item.id || uid('lv'), type: 'custom', name: item.name,
+          start: item.start, end: parseISO(item.end) ? item.end : item.start,
+          countsAsLeave: false, note: '',
+        }))
+      return next
+    }
+
+    function loadState() {
+      try {
+        const raw = window.localStorage.getItem(STORE_KEY)
+        if (raw) return sanitize(JSON.parse(raw))
+        const legacy = window.localStorage.getItem(LEGACY_KEY)
+        if (legacy) return sanitize(migrateLegacy(JSON.parse(legacy)))
+      } catch (error) { /* corrupted payload falls back to defaults */ }
+      return defaultState()
+    }
+
+    const ACHIEVEMENTS = [
+      { id: 'retire', title: '退休梦想家|Retirement Dreamer', test: (s) => !!retirementInfo(s.profile) },
+      { id: 'countdown', title: '时间收藏家|Countdown Collector', test: (s) => s.countdowns.length > 0 },
+      { id: 'planner', title: '拼假大师|Leave Alchemist', test: (s) => s.stats.plannerRuns > 0 },
+      { id: 'goal', title: '愿望清单|Wishlist', test: (s) => s.goals.length > 0 },
+      { id: 'capsule', title: '写给未来|Letter to Future', test: (s) => s.capsules.length > 0 },
+      { id: 'pet3', title: '团子好友|Blob Friend', test: (s) => petLevel(s.pet.xp) >= 3 },
+      { id: 'leave5', title: '休假达人|Leave Master', test: (s) => s.leaves.length >= 5 },
+      { id: 'export', title: '数据管家|Data Keeper', test: (s) => s.stats.exports > 0 },
+    ]
+
+    function withAchievements(state) {
+      const unlocked = Object.assign({}, state.achievements)
+      let changed = false
+      const stamp = toISO(new Date())
+      for (const item of ACHIEVEMENTS) {
+        if (!unlocked[item.id] && item.test(state)) { unlocked[item.id] = stamp; changed = true }
+      }
+      return changed ? Object.assign({}, state, { achievements: unlocked }) : state
+    }
+
+    let currentState = loadState()
+    const listeners = new Set()
+
+    function commit(next) {
+      currentState = withAchievements(next)
+      try { window.localStorage.setItem(STORE_KEY, JSON.stringify(currentState)) } catch (error) { /* quota */ }
+      for (const listener of Array.from(listeners)) listener()
+    }
+
+    function subscribe(listener) {
+      listeners.add(listener)
+      return () => { listeners.delete(listener) }
+    }
+
+    function useLifeOS() {
+      const [, bump] = useState(0)
+      useEffect(() => subscribe(() => bump((value) => value + 1)), [])
+      setLang(currentState.settings.lang)
+      return currentState
+    }
+
+    const patch = (partial) => commit(Object.assign({}, currentState, partial))
+    const patchProfile = (partial) => patch({ profile: Object.assign({}, currentState.profile, partial) })
+    const patchSettings = (partial) => patch({ settings: Object.assign({}, currentState.settings, partial) })
+    const bumpStat = (key) => patch({ stats: Object.assign({}, currentState.stats, { [key]: currentState.stats[key] + 1 }) })
+
+    function exportData() {
+      const payload = { app: 'LifeOS', schema: SCHEMA, exportedAt: new Date().toISOString(), data: currentState }
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = 'lifeos-' + toISO(new Date()) + '.json'
+      anchor.click()
+      URL.revokeObjectURL(url)
+      bumpStat('exports')
+    }
+
+    function importData(text) {
+      const parsed = JSON.parse(text)
+      if (!parsed || parsed.app !== 'LifeOS' || !parsed.data || parsed.data.v !== SCHEMA) throw new Error('bad-file')
+      commit(sanitize(parsed.data))
+    }
+
+    function resetData() {
+      commit(defaultState())
+    }
+
+    /* ------------------------------------------------------------------ *
+     * 6. Engines — countdowns, leave, planner, work status, fun
+     * ------------------------------------------------------------------ */
+
+    function nextOccurrence(startText, yearly, today) {
+      const base = parseISO(startText)
+      if (!base) return null
+      if (!yearly) return base
+      const month = base.getMonth()
+      const day = base.getDate()
+      for (let cursor = today.getFullYear(); cursor <= today.getFullYear() + 2; cursor += 1) {
+        const candidate = new Date(cursor, month, day)
+        if (candidate.getMonth() !== month) continue
+        if (diffDays(today, candidate) >= 0) return candidate
+      }
+      return null
+    }
+
+    function customCountdowns(state, today) {
+      return state.countdowns
+        .map((item) => {
+          const date = nextOccurrence(item.date, item.yearly, today)
+          if (!date) return null
+          return { id: item.id, kind: 'custom', name: item.name, date, days: diffDays(today, date), yearly: item.yearly }
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.days - b.days)
+    }
+
+    /** Nearest countdowns across retirement, holidays, leaves and custom items. */
+    function lifeEntries(state, now) {
+      const today = startOfDay(now)
+      const items = []
+      const retire = retirementInfo(state.profile)
+      if (retire) items.push({ id: 'retire', kind: 'retire', name: t('retireTitle'), date: retire.date, days: diffDays(today, retire.date) })
+      if (state.settings.showHolidays) items.push.apply(items, holidayPeriods(today))
+      for (const item of state.countdowns) {
+        const date = nextOccurrence(item.date, item.yearly, today)
+        if (date) items.push({ id: item.id, kind: 'custom', name: item.name, date, days: diffDays(today, date) })
+      }
+      for (const leave of state.leaves) {
+        const date = parseISO(leave.start)
+        if (date && diffDays(today, date) >= 0) items.push({ id: leave.id, kind: 'leave', name: leave.name, date, days: diffDays(today, date) })
+      }
+      return items.sort((a, b) => (a.days < 0 ? 1 : 0) - (b.days < 0 ? 1 : 0) || a.days - b.days)
+    }
+
+    function leaveDays(leave) {
+      const start = parseISO(leave.start)
+      const end = parseISO(leave.end) || start
+      if (!start) return 0
+      return diffDays(start, end) + 1
+    }
+
+    function leaveStats(state, year) {
+      const target = year || new Date().getFullYear()
+      const used = state.leaves
+        .filter((leave) => leave.countsAsLeave && parseISO(leave.start) && parseISO(leave.start).getFullYear() === target)
+        .reduce((sum, leave) => sum + leaveDays(leave), 0)
+      const quota = state.profile.leaveQuota + state.profile.leaveCarry
+      return { quota, used, left: quota - used }
+    }
+
+    /**
+     * Deterministic leave planner: for every working day in the window, take
+     * the longest run of working days that fits the budget and keep the rest
+     * days it joins into one continuous break.
+     */
+    function planLeave(state, options) {
+      const budget = Math.max(1, Math.min(15, options.budget | 0))
+      const from = parseISO(options.from)
+      const to = parseISO(options.to)
+      if (!from || !to || diffDays(from, to) < 0) return []
+      const days = []
+      for (let cursor = from; diffDays(cursor, to) >= 0; cursor = addDays(cursor, 1)) days.push(startOfDay(cursor))
+
+      const plans = []
+      for (let index = 0; index < days.length; index += 1) {
+        if (isRestDay(days[index])) continue
+        let cursor = index
+        while (cursor < days.length && cursor - index < budget && !isRestDay(days[cursor])) cursor += 1
+        const cost = cursor - index
+        if (cost <= 0) continue
+        let left = index - 1
+        while (left >= 0 && isRestDay(days[left])) left -= 1
+        let right = cursor
+        while (right < days.length && isRestDay(days[right])) right += 1
+        const continuous = (cursor - index) + (index - 1 - left) + (right - cursor)
+        if (continuous <= cost) continue
+        const leaveDates = days.slice(index, cursor)
+        plans.push({
+          id: toISO(days[index]) + '-' + cost,
+          leaveDates,
+          first: days[left + 1],
+          last: days[right - 1],
+          continuous,
+          cost,
+          ratio: continuous / cost,
+          makeup: leaveDates.filter((date) => dayInfo(date).type === 'makeup'),
+        })
+      }
+
+      const seen = new Set()
+      const unique = []
+      for (const plan of plans) {
+        const key = toISO(plan.first) + '|' + toISO(plan.last) + '|' + plan.cost
+        if (seen.has(key)) continue
+        seen.add(key)
+        unique.push(plan)
+      }
+      const sorters = {
+        longest: (a, b) => b.continuous - a.continuous || a.cost - b.cost,
+        cheapest: (a, b) => a.cost - b.cost || b.continuous - a.continuous,
+        value: (a, b) => b.ratio - a.ratio || b.continuous - a.continuous,
+      }
+      return unique.sort(sorters[options.sort] || sorters.longest).slice(0, 5)
+    }
+
+    function minutesFromTime(text) {
+      const match = /^(\d{1,2}):(\d{2})$/.exec(text || '')
+      if (!match) return null
+      return Number(match[1]) * 60 + Number(match[2])
+    }
+
+    function workStatus(profile, now) {
+      const workdays = profile.workdays.length ? profile.workdays : [1, 2, 3, 4, 5]
+      const dayNumber = now.getDay() === 0 ? 7 : now.getDay()
+      const scheduled = workdays.includes(dayNumber) && !isRestDay(now)
+      const start = minutesFromTime(profile.workStart)
+      const end = minutesFromTime(profile.workEnd)
+      const minutes = now.getHours() * 60 + now.getMinutes()
+      const today = startOfDay(now)
+
+      if (scheduled && start != null && end != null && minutes < start) {
+        return { state: 'before', minutes: start - minutes }
+      }
+      if (scheduled && start != null && end != null && minutes >= start && minutes < end) {
+        return { state: 'working', minutes: end - minutes }
+      }
+      let next = null
+      for (let offset = 0; offset <= 10 && !next; offset += 1) {
+        const day = addDays(today, offset)
+        const number = day.getDay() === 0 ? 7 : day.getDay()
+        if (!workdays.includes(number) || isRestDay(day)) continue
+        if (offset === 0 && end != null && minutes >= end) continue
+        next = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, start || 0)
+      }
+      return { state: 'off', next }
+    }
+
+    function nextPayday(profile, now) {
+      const day = profile.salaryDay
+      if (!day) return null
+      const today = startOfDay(now)
+      let candidate = new Date(today.getFullYear(), today.getMonth(), day)
+      if (diffDays(today, candidate) < 0) candidate = new Date(today.getFullYear(), today.getMonth() + 1, day)
+      return candidate
+    }
+
+    function hashString(text) {
+      let hash = 2166136261
+      for (let index = 0; index < text.length; index += 1) {
+        hash ^= text.charCodeAt(index)
+        hash = Math.imul(hash, 16777619)
+      }
+      return hash >>> 0
+    }
+
+    const QUOTES = [
+      '把今天过好，就已经赢了一半。',
+      '假期不是奖励，是生活本来的样子。',
+      '摸鱼的时候，时间也会温柔一点。',
+      '你不需要每一天都闪闪发光，偶尔发呆也算数。',
+      '距离下班越近，咖啡越香。',
+      '计划赶不上变化，但计划本身让人安心。',
+      '认真休息，是认真工作的一部分。',
+      '今天的你，已经比昨天多活了一天。',
+      '别忘了抬头看看窗外，云也在上班。',
+      '攒下的不是年假，是值得期待的日子。',
+      '人生是长跑，但可以先想想晚饭吃什么。',
+      '把想做的事写下来，未来就有了形状。',
+    ]
+
+    function dailyFun(date) {
+      const seed = hashString(toISO(date))
+      return {
+        slack: seed % 101,
+        coffee: (seed >>> 7) % 101,
+        quote: QUOTES[seed % QUOTES.length],
+      }
+    }
+
+    function petLevel(xp) { return 1 + Math.floor(Math.max(0, xp) / 50) }
+
+    function petMood(now) {
+      const hour = now.getHours()
+      if (hour < 7) return 'sleepy'
+      if (hour < 12) return 'happy'
+      if (hour < 18) return 'focused'
+      return 'cozy'
+    }
+
+    function monthGrid(year, month, state) {
+      const first = new Date(year, month, 1)
+      const offset = (first.getDay() + 6) % 7
+      const cells = []
+      for (let index = 0; index < 42; index += 1) {
+        const date = new Date(year, month, 1 - offset + index)
+        const info = dayInfo(date)
+        const leaves = state.leaves.filter((leave) => {
+          const start = parseISO(leave.start)
+          const end = parseISO(leave.end) || start
+          return start && diffDays(start, date) >= 0 && diffDays(date, end) >= 0
+        })
+        cells.push({ date, info, leaves, outside: date.getMonth() !== month })
+      }
+      return cells
+    }
+
+    /* ------------------------------------------------------------------ *
+     * 7. UI primitives
+     * ------------------------------------------------------------------ */
+
+    const cx = (...names) => names.filter(Boolean).join(' ')
+
+    function useNow(intervalMs) {
+      const [now, setNow] = useState(() => new Date())
+      useEffect(() => {
+        const timer = window.setInterval(() => setNow(new Date()), intervalMs || 30000)
+        return () => window.clearInterval(timer)
+      }, [intervalMs])
+      return now
+    }
+
+    function Card({ title, action, children, className }) {
+      return h('section', { className: cx('lo-card', className) },
+        (title || action)
+          ? h('div', { className: 'lo-card-head' },
+            h('h2', { className: 'lo-card-title' }, title),
+            action || null)
+          : null,
+        children)
+    }
+
+    function Field({ label, children }) {
+      return h('label', { className: 'lo-field' },
+        h('span', { className: 'lo-field-label' }, label),
+        children)
+    }
+
+    function TextInput({ value, onChange, placeholder, maxLength }) {
+      return h('input', {
+        className: 'lo-input',
+        value: value == null ? '' : value,
+        placeholder: placeholder || '',
+        maxLength: maxLength || 64,
+        onChange: (event) => onChange(event.target.value),
+      })
+    }
+
+    function Select({ value, onChange, options }) {
+      return h('select', { className: 'lo-input', value: value, onChange: (event) => onChange(event.target.value) },
+        options.map((option) => h('option', { key: option.value, value: option.value }, option.label)))
+    }
+
+    function Button({ children, onClick, variant, type }) {
+      return h('button', {
+        type: type || 'button',
+        className: cx('lo-btn', variant === 'primary' && 'lo-btn-primary', variant === 'ghost' && 'lo-btn-ghost'),
+        onClick,
+      }, children)
+    }
+
+    function DateField({ value, onChange, max }) {
+      const [draft, setDraft] = useState(null)
+      const committed = value ? parseISO(value) : null
+      const text = draft == null ? (committed ? formatDate(committed) : '') : draft
+      const invalid = draft != null && draft.trim() !== '' && !parseAnyDate(draft)
+
+      const commitValue = (raw) => {
+        const parsed = parseAnyDate(raw)
+        if (!parsed) return false
+        if (max && diffDays(max, parsed) > 0) return false
+        onChange(toISO(parsed))
+        return true
+      }
+
+      return h('input', {
+        className: cx('lo-input', invalid && 'lo-input-invalid'),
+        type: 'text',
+        inputMode: 'numeric',
+        autoComplete: 'off',
+        spellCheck: false,
+        value: text,
+        placeholder: t('datePlaceholder'),
+        onFocus: (event) => {
+          setDraft(committed ? toISO(committed) : '')
+          const target = event.target
+          if (typeof window !== 'undefined' && window.requestAnimationFrame) {
+            window.requestAnimationFrame(() => { try { target.select() } catch (error) { /* ignore */ } })
+          }
+        },
+        onChange: (event) => {
+          setDraft(event.target.value)
+          commitValue(event.target.value)
+        },
+        onBlur: () => {
+          if (draft != null && draft.trim() === '') onChange('')
+          setDraft(null)
+        },
+        onKeyDown: (event) => { if (event.key === 'Enter') event.currentTarget.blur() },
+      })
+    }
+
+    /** Original mascot: a round "time blob" drawn with simple geometry. */
+    function Mascot({ size, mood }) {
+      const s = size || 64
+      const eye = mood === 'sleepy' ? 1.5 : 2.6
+      return h('svg', {
+        width: s, height: s, viewBox: '0 0 64 64', 'aria-hidden': true,
+        style: { display: 'block', flex: 'none' },
+      },
+      h('circle', { cx: 32, cy: 34, r: 22, fill: '#F5F0E6' }),
+      h('circle', { cx: 32, cy: 34, r: 22, fill: 'none', stroke: '#E8B88F', strokeWidth: 2.2, opacity: 0.7 }),
+      mood === 'sleepy'
+        ? h('path', { d: 'M24 33c1.4-1.2 3.6-1.2 5 0M35 33c1.4-1.2 3.6-1.2 5 0', stroke: '#354B43', strokeWidth: 2, strokeLinecap: 'round', fill: 'none' })
+        : h('g', null,
+          h('circle', { cx: 26, cy: 32, r: eye, fill: '#354B43' }),
+          h('circle', { cx: 38, cy: 32, r: eye, fill: '#354B43' })),
+      mood === 'celebrate'
+        ? h('path', { d: 'M26 41c2.2 3 4.2 4.2 6 4.2s3.8-1.2 6-4.2', stroke: '#354B43', strokeWidth: 2.4, strokeLinecap: 'round', fill: 'none' })
+        : h('path', { d: 'M27 41c1.8 1.8 3.4 2.6 5 2.6s3.2-.8 5-2.6', stroke: '#354B43', strokeWidth: 2.2, strokeLinecap: 'round', fill: 'none' }),
+      h('circle', { cx: 20, cy: 38, r: 3, fill: '#E9D9CE' }),
+      h('circle', { cx: 44, cy: 38, r: 3, fill: '#E9D9CE' }))
+    }
+
+    function SectionHead({ title, action }) {
+      return h('div', { className: 'lo-section-head' },
+        h('h2', { className: 'lo-section-title' }, title),
+        action || null)
+    }
+
+    /* ------------------------------------------------------------------ *
+     * 8. Home
+     * ------------------------------------------------------------------ */
+
+    function RetirementHero({ state, today, onSetup }) {
+      const info = retirementInfo(state.profile)
+      const start = parseISO(state.profile.careerStart)
+      const days = info ? diffDays(today, info.date) : 0
+      let progress = null
+      if (info && start) {
+        const total = diffDays(start, info.date)
+        if (total > 0) progress = Math.max(0, Math.min(1, diffDays(start, today) / total))
+      }
+      const parts = info ? breakdown(days >= 0 ? today : info.date, days >= 0 ? info.date : today) : null
+
+      if (!info) {
+        return h('section', { className: 'lo-hero lo-hero-empty' },
+          h('div', { className: 'lo-hero-top' },
+            h(Mascot, { size: 46, mood: 'happy' }),
+            h('div', null,
+              h('p', { className: 'lo-hero-label' }, t('retireTitle')),
+              h('p', { className: 'lo-hero-empty-text' }, t('retireEmpty')))),
+          h(Button, { variant: 'primary', onClick: onSetup }, t('retireSetup')))
+      }
+
+      return h('section', { className: 'lo-hero' },
+        h('div', { className: 'lo-hero-top' },
+          h('div', null,
+            h('p', { className: 'lo-hero-label' }, days >= 0 ? t('retireUntil') : t('retireRetired')),
+            h('div', { className: 'lo-hero-value' },
+              h('span', { className: 'lo-hero-num' }, formatInt(days)),
+              h('span', { className: 'lo-hero-unit' }, t('days'))),
+            days >= 0
+              ? h('p', { className: 'lo-hero-span' }, t('retireSpan', { span: breakdownText(parts) }))
+              : null,
+            h('p', { className: 'lo-hero-date' }, t('retireOn', { date: formatDate(info.date) })),
+            info.manual ? h('p', { className: 'lo-hero-tag' }, t('retireManual')) : null),
+          h('div', { className: 'lo-hero-art' }, h(Mascot, { size: 84, mood: days >= 0 ? 'happy' : 'celebrate' }))),
+        progress == null ? null : h('div', { className: 'lo-progress-wrap' },
+          h('div', { className: 'lo-progress-head' },
+            h('span', null, LANG === 'en' ? 'Career ' + Math.round(progress * 100) + '%' : '职业生涯已过 ' + Math.round(progress * 100) + '%')),
+          h('div', { className: 'lo-progress', role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuenow': Math.round(progress * 100) },
+            h('i', { style: { width: Math.max(0, Math.min(100, Math.round(progress * 100))) + '%' } }))))
+    }
+
+    function NextHolidayCard({ entry }) {
+      if (!entry) return null
+      return h('section', { className: 'lo-next' },
+        h('p', { className: 'lo-next-label' }, entry.active ? t('onHoliday') : t('nextHoliday')),
+        h('div', { className: 'lo-next-value' },
+          h('span', { className: 'lo-next-num' }, formatInt(entry.active ? entry.remaining : entry.days)),
+          h('span', { className: 'lo-next-unit' }, t('days'))),
+        h('p', { className: 'lo-next-name' }, entry.name),
+        h('p', { className: 'lo-next-meta' }, t('holidayRange', { start: monthDay(entry.date), end: monthDay(entry.end) }) + ' · ' + t('holidaySpan', { n: entry.span })),
+        entry.active ? h('p', { className: 'lo-next-active' }, t('holidayLeft', { n: entry.remaining })) : null,
+        entry.work.length ? h('p', { className: 'lo-next-work' }, t('makeupDays', { dates: entry.work.map(monthDay).join('、') })) : null)
+    }
+
+    function QuickStats({ state, now }) {
+      const work = workStatus(state.profile, now)
+      const payday = nextPayday(state.profile, now)
+      const leave = leaveStats(state, now.getFullYear())
+      const workText = work.state === 'working'
+        ? (LANG === 'en' ? Math.floor(work.minutes / 60) + 'h ' + (work.minutes % 60) + 'm' : Math.floor(work.minutes / 60) + ' 小时 ' + (work.minutes % 60) + ' 分')
+        : work.state === 'before'
+          ? LANG === 'en' ? 'in ' + work.minutes + 'm' : '还有 ' + work.minutes + ' 分钟'
+          : t('dayOff')
+      return h('div', { className: 'lo-quick' },
+        h('div', { className: 'lo-quick-item' },
+          h('span', { className: 'lo-quick-label' }, work.state === 'working' ? t('workUntil') : work.state === 'before' ? t('workStartIn') : t('dayOff')),
+          h('span', { className: 'lo-quick-value' }, workText)),
+        h('div', { className: 'lo-quick-item' },
+          h('span', { className: 'lo-quick-label' }, t('payday')),
+          h('span', { className: 'lo-quick-value' }, payday ? (LANG === 'en' ? Math.max(0, diffDays(startOfDay(now), payday)) + ' d' : Math.max(0, diffDays(startOfDay(now), payday)) + ' 天') : t('none'))),
+        h('div', { className: 'lo-quick-item' },
+          h('span', { className: 'lo-quick-label' }, t('leaveLeft')),
+          h('span', { className: 'lo-quick-value' }, leave.left + ' ' + t('days'))))
+    }
+
+    function DailyQuote({ fun }) {
+      return h('section', { className: 'lo-quote' },
+        h(Mascot, { size: 44, mood: 'cozy' }),
+        h('div', { className: 'lo-quote-body' },
+          h('p', { className: 'lo-quote-text' }, '“' + fun.quote + '”'),
+          h('p', { className: 'lo-quote-label' }, t('quote'))))
+    }
+
+    function CountdownList({ state }) {
+      const [name, setName] = useState('')
+      const [date, setDate] = useState('')
+      const [yearly, setYearly] = useState(false)
+      const [error, setError] = useState('')
+      const today = startOfDay(new Date())
+
+      const submit = () => {
+        if (!name.trim()) return setError(t('errName'))
+        if (!parseISO(date)) return setError(t('errDate'))
+        patch({ countdowns: state.countdowns.concat([{ id: uid('cd'), name: name.trim(), date, yearly }]) })
+        setName(''); setDate(''); setYearly(false); setError('')
+      }
+
+      return h(Card, {
+        title: LANG === 'en' ? 'My countdowns' : '我的倒计时',
+        action: h('span', { className: 'lo-count' }, state.countdowns.length),
+      },
+      h('div', { className: 'lo-form lo-form-inline' },
+        h(Field, { label: t('name') }, h(TextInput, { value: name, onChange: setName, placeholder: LANG === 'en' ? 'e.g. trip to Japan' : '例如：旅行、纪念日' })),
+        h(Field, { label: t('datePlaceholder') }, h(DateField, { value: date, onChange: setDate })),
+        h('label', { className: 'lo-check' },
+          h('input', { type: 'checkbox', checked: yearly, onChange: (event) => setYearly(event.target.checked) }),
+          h('span', null, LANG === 'en' ? 'Repeats yearly' : '每年重复')),
+        h(Button, { variant: 'primary', onClick: submit }, t('add'))),
+      error ? h('p', { className: 'lo-error' }, error) : null,
+      state.countdowns.length === 0
+        ? h('p', { className: 'lo-empty' }, t('empty'))
+        : h('ul', { className: 'lo-list' }, state.countdowns
+          .map((item) => ({ item, date: nextOccurrence(item.date, item.yearly, today) }))
+          .filter((entry) => entry.date)
+          .sort((a, b) => diffDays(today, a.date) - diffDays(today, b.date))
+          .map(({ item, date: when }) => h('li', { key: item.id, className: 'lo-row' },
+            h('div', { className: 'lo-row-main' },
+              h('span', { className: 'lo-row-name' }, item.name, item.yearly ? h('em', { className: 'lo-chip' }, LANG === 'en' ? 'yearly' : '每年') : null),
+              h('span', { className: 'lo-row-meta' }, formatDate(when))),
+            h('span', { className: 'lo-row-days' }, formatInt(diffDays(today, when)), h('em', null, t('days'))),
+            h('button', { type: 'button', className: 'lo-link lo-danger', onClick: () => patch({ countdowns: state.countdowns.filter((entry) => entry.id !== item.id) }) }, t('delete'))))))
+    }
+
+    function HomeView({ state, now, onTab }) {
+      const today = startOfDay(now)
+      const holidays = state.settings.showHolidays ? holidayPeriods(today) : []
+      const featured = holidays.length ? holidays[0] : null
+      const fun = dailyFun(today)
+
+      return h('div', { className: 'lo-view' },
+        h('div', { className: cx('lo-hero-row', !featured && 'lo-hero-single') },
+          h(RetirementHero, { state, today, onSetup: () => onTab('me') }),
+          h(NextHolidayCard, { entry: featured })),
+        h(QuickStats, { state, now }),
+        h(DailyQuote, { fun }),
+        h(CountdownList, { state }),
+        state.goals.length
+          ? h(Card, { title: t('goals'), action: h('button', { type: 'button', className: 'lo-link', onClick: () => onTab('me') }, t('edit')) },
+            h('ul', { className: 'lo-list' }, state.goals.slice(0, 3).map((goal) => h('li', { key: goal.id, className: 'lo-goal' },
+              h('div', { className: 'lo-goal-head' },
+                h('span', { className: 'lo-row-name' }, goal.title),
+                h('span', { className: 'lo-row-days' }, goal.progress + '%')),
+              h('div', { className: 'lo-progress lo-progress-sm' }, h('i', { style: { width: goal.progress + '%' } }))))))
+          : null)
+    }
+
+    /* ------------------------------------------------------------------ *
+     * 9. Calendar, leave and planner
+     * ------------------------------------------------------------------ */
+
+    const LEAVE_TYPES = [
+      { value: 'annual', label: '年假|Annual' },
+      { value: 'custom', label: '自定义|Custom' },
+      { value: 'marriage', label: '婚假|Marriage' },
+      { value: 'maternity', label: '产假/陪产|Parental' },
+      { value: 'sick', label: '病假|Sick' },
+      { value: 'personal', label: '事假|Personal' },
+      { value: 'travel', label: '旅行|Travel' },
+    ]
+    const leaveTypeLabel = (value) => {
+      const entry = LEAVE_TYPES.find((item) => item.value === value)
+      if (!entry) return value
+      const parts = entry.label.split('|')
+      return LANG === 'en' ? parts[1] || parts[0] : parts[0]
+    }
+
+    function MonthGrid({ state, cursor, selected, onSelect }) {
+      const cells = monthGrid(cursor.getFullYear(), cursor.getMonth(), state)
+      const weeks = []
+      for (let index = 0; index < cells.length; index += 7) weeks.push(cells.slice(index, index + 7))
+      return h('div', { className: 'lo-month' },
+        h('div', { className: 'lo-weekdays' },
+          ['一', '二', '三', '四', '五', '六', '日'].map((day, index) => h('span', { key: day, className: 'lo-weekday' }, LANG === 'en' ? ['M', 'T', 'W', 'T', 'F', 'S', 'S'][index] : day))),
+        weeks.map((week, weekIndex) => h('div', { key: weekIndex, className: 'lo-week' }, week.map((cell) => {
+          const isSelected = selected && toISO(cell.date) === toISO(selected)
+          const isToday = toISO(cell.date) === toISO(new Date())
+          return h('button', {
+            key: toISO(cell.date),
+            type: 'button',
+            className: cx('lo-day', cell.outside && 'lo-day-outside', isToday && 'lo-day-today', isSelected && 'lo-day-selected', cell.info.type === 'holiday' && 'lo-day-holiday'),
+            onClick: () => onSelect(startOfDay(cell.date)),
+          },
+          h('span', { className: 'lo-day-num' }, cell.date.getDate()),
+          cell.info.type === 'holiday' ? h('span', { className: 'lo-day-mark' }) : null,
+          cell.info.type === 'makeup' ? h('span', { className: 'lo-day-mark lo-day-mark-work' }) : null,
+          cell.leaves.length ? h('span', { className: 'lo-day-mark lo-day-mark-leave' }) : null)
+        }))))
+    }
+
+    function CalendarView({ state, now }) {
+      const [cursor, setCursor] = useState(() => new Date(now.getFullYear(), now.getMonth(), 1))
+      const [selected, setSelected] = useState(() => startOfDay(now))
+      const viewYear = cursor.getFullYear()
+      const rows = HOLIDAY_DATA[viewYear] || []
+      const info = selected ? dayInfo(selected) : null
+      const selectedLeaves = selected
+        ? state.leaves.filter((leave) => {
+          const start = parseISO(leave.start)
+          const end = parseISO(leave.end) || start
+          return start && diffDays(start, selected) >= 0 && diffDays(selected, end) >= 0
+        })
+        : []
+
+      return h('div', { className: 'lo-view' },
+        h(Card, {
+          title: LANG === 'en' ? viewYear + '/' + (cursor.getMonth() + 1) : viewYear + ' 年 ' + (cursor.getMonth() + 1) + ' 月',
+          action: h('div', { className: 'lo-month-nav' },
+            h('button', { type: 'button', className: 'lo-link', onClick: () => setCursor(new Date(viewYear, cursor.getMonth() - 1, 1)) }, t('monthPrev')),
+            h('button', { type: 'button', className: 'lo-link', onClick: () => setCursor(new Date(now.getFullYear(), now.getMonth(), 1)) }, t('today')),
+            h('button', { type: 'button', className: 'lo-link', onClick: () => setCursor(new Date(viewYear, cursor.getMonth() + 1, 1)) }, t('monthNext'))),
+        },
+        h(MonthGrid, { state, cursor, selected, onSelect: setSelected }),
+        h('div', { className: 'lo-legend' },
+          h('span', null, h('i', { className: 'lo-dot lo-dot-holiday' }), t('legendHoliday')),
+          h('span', null, h('i', { className: 'lo-dot lo-dot-leave' }), t('legendLeave')),
+          h('span', null, h('i', { className: 'lo-dot lo-dot-work' }), t('legendMakeup')))),
+        selected
+          ? h(Card, { title: formatDate(selected) + ' · ' + weekdayName(selected) },
+            info && info.name ? h('p', { className: 'lo-note' }, info.type === 'makeup' ? t('makeupDays', { dates: info.name }) : info.name) : null,
+            selectedLeaves.length
+              ? h('ul', { className: 'lo-list' }, selectedLeaves.map((leave) => h('li', { key: leave.id, className: 'lo-row' },
+                h('div', { className: 'lo-row-main' },
+                  h('span', { className: 'lo-row-name' }, leave.name),
+                  h('span', { className: 'lo-row-meta' }, leaveTypeLabel(leave.type) + ' · ' + formatDate(parseISO(leave.start)) + ' – ' + formatDate(parseISO(leave.end) || parseISO(leave.start)))))))
+              : h('p', { className: 'lo-empty' }, t('empty')))
+          : null,
+        h(LeaveSection, { state, now }),
+        h(YearHolidays, { year: viewYear, rows }),
+        h(Planner, { state, now }))
+    }
+
+    function LeaveSection({ state, now }) {
+      const stats = leaveStats(state, now.getFullYear())
+      const [draft, setDraft] = useState(() => ({ type: 'annual', name: '', start: '', end: '', countsAsLeave: true, note: '' }))
+      const [error, setError] = useState('')
+
+      const submit = () => {
+        if (!draft.name.trim()) return setError(t('errName'))
+        const start = parseISO(draft.start)
+        if (!start) return setError(t('errDate'))
+        const end = parseISO(draft.end) || start
+        if (diffDays(start, end) < 0) return setError(t('errRange'))
+        patch({
+          leaves: state.leaves.concat([{
+            id: uid('lv'), type: draft.type, name: draft.name.trim(),
+            start: draft.start, end: draft.end || draft.start,
+            countsAsLeave: draft.countsAsLeave, note: draft.note,
+          }]),
+        })
+        setDraft({ type: 'annual', name: '', start: '', end: '', countsAsLeave: true, note: '' })
+        setError('')
+      }
+
+      return h(Card, {
+        title: t('leaveTitle'),
+        action: h('span', { className: 'lo-count' }, stats.left + ' / ' + stats.quota),
+      },
+      h('div', { className: 'lo-stats' },
+        h('div', { className: 'lo-stat' }, h('span', { className: 'lo-stat-label' }, t('leaveQuota')), h('b', null, state.profile.leaveQuota)),
+        h('div', { className: 'lo-stat' }, h('span', { className: 'lo-stat-label' }, t('leaveCarry')), h('b', null, state.profile.leaveCarry)),
+        h('div', { className: 'lo-stat' }, h('span', { className: 'lo-stat-label' }, t('leaveUsed')), h('b', null, stats.used)),
+        h('div', { className: 'lo-stat' }, h('span', { className: 'lo-stat-label' }, t('leaveLeft')), h('b', null, stats.left))),
+      h('div', { className: 'lo-form' },
+        h(Field, { label: t('leaveType') },
+          h(Select, { value: draft.type, onChange: (value) => setDraft(Object.assign({}, draft, { type: value })), options: LEAVE_TYPES.map((item) => {
+            const parts = item.label.split('|')
+            return { value: item.value, label: LANG === 'en' ? parts[1] || parts[0] : parts[0] }
+          }) })),
+        h(Field, { label: t('name') }, h(TextInput, { value: draft.name, onChange: (value) => setDraft(Object.assign({}, draft, { name: value })) })),
+        h(Field, { label: t('start') }, h(DateField, { value: draft.start, onChange: (value) => setDraft(Object.assign({}, draft, { start: value })) })),
+        h(Field, { label: t('end') }, h(DateField, { value: draft.end, onChange: (value) => setDraft(Object.assign({}, draft, { end: value })) })),
+        h('label', { className: 'lo-check' },
+          h('input', { type: 'checkbox', checked: draft.countsAsLeave, onChange: (event) => setDraft(Object.assign({}, draft, { countsAsLeave: event.target.checked })) }),
+          h('span', null, t('countsAsLeave'))),
+        h(Button, { variant: 'primary', onClick: submit }, t('addLeave'))),
+      error ? h('p', { className: 'lo-error' }, error) : null,
+      state.leaves.length === 0
+        ? h('p', { className: 'lo-empty' }, t('leaveEmpty'))
+        : h('ul', { className: 'lo-list' }, state.leaves.slice().sort((a, b) => diffDays(parseISO(b.start), parseISO(a.start))).map((leave) => h('li', { key: leave.id, className: 'lo-row' },
+          h('div', { className: 'lo-row-main' },
+            h('span', { className: 'lo-row-name' }, leave.name,
+              leave.countsAsLeave ? h('em', { className: 'lo-chip' }, LANG === 'en' ? 'leave' : '年假') : null),
+            h('span', { className: 'lo-row-meta' },
+              leaveTypeLabel(leave.type) + ' · ' + formatDate(parseISO(leave.start)) + ' – ' + formatDate(parseISO(leave.end) || parseISO(leave.start)))),
+          h('span', { className: 'lo-row-days' }, leaveDays(leave), h('em', null, t('days'))),
+          h('button', { type: 'button', className: 'lo-link lo-danger', onClick: () => patch({ leaves: state.leaves.filter((item) => item.id !== leave.id) }) }, t('delete'))))))
+    }
+
+    function YearHolidays({ year, rows }) {
+      if (!rows || !rows.length) {
+        return h(Card, { title: t('allHolidays') }, h('p', { className: 'lo-empty' }, t('empty')))
+      }
+      return h(Card, { title: year + ' · ' + t('allHolidays') },
+        h('ul', { className: 'lo-list' }, rows.map((row, index) => {
+          const start = parseISO(row[1])
+          const end = parseISO(row[2])
+          const span = diffDays(start, end) + 1
+          return h('li', { key: index, className: 'lo-row' },
+            h('div', { className: 'lo-row-main' },
+              h('span', { className: 'lo-row-name' }, row[0]),
+              h('span', { className: 'lo-row-meta' }, t('holidayRange', { start: monthDay(start), end: monthDay(end) })
+                + (row[3].length ? ' · ' + t('makeupDays', { dates: row[3].map((day) => monthDay(parseISO(day))).join('、') }) : ''))),
+            h('span', { className: 'lo-row-days' }, span, h('em', null, t('days'))))
+        })))
+    }
+
+    function Planner({ state, now }) {
+      const stats = leaveStats(state, now.getFullYear())
+      const [budget, setBudget] = useState(String(Math.max(1, stats.left || 1)))
+      const [from, setFrom] = useState(toISO(startOfDay(now)))
+      const [to, setTo] = useState(toISO(addDays(startOfDay(now), 90)))
+      const [sort, setSort] = useState('longest')
+      const [plans, setPlans] = useState(null)
+      const [error, setError] = useState('')
+
+      const run = () => {
+        const amount = Number(budget)
+        if (!Number.isFinite(amount) || amount < 1) return setError(t('errBudget'))
+        if (!parseISO(from) || !parseISO(to) || diffDays(parseISO(from), parseISO(to)) < 0) return setError(t('errDate'))
+        setError('')
+        setPlans(planLeave(state, { budget: amount, from, to, sort }))
+        bumpStat('plannerRuns')
+      }
+
+      return h(Card, { title: t('planner') },
+        h('p', { className: 'lo-hint' }, t('plannerHint')),
+        h('div', { className: 'lo-form' },
+          h(Field, { label: t('plannerBudget') }, h(TextInput, { value: budget, onChange: setBudget })),
+          h(Field, { label: t('plannerWindow') + ' · ' + t('start') }, h(DateField, { value: from, onChange: setFrom })),
+          h(Field, { label: t('end') }, h(DateField, { value: to, onChange: setTo })),
+          h(Field, { label: t('type') }, h(Select, {
+            value: sort,
+            onChange: setSort,
+            options: [
+              { value: 'longest', label: t('plannerLongest') },
+              { value: 'cheapest', label: t('plannerCheapest') },
+              { value: 'value', label: t('plannerBest') },
+            ],
+          })),
+          h(Button, { variant: 'primary', onClick: run }, t('plannerRun'))),
+        error ? h('p', { className: 'lo-error' }, error) : null,
+        plans == null ? null : plans.length === 0
+          ? h('p', { className: 'lo-empty' }, t('plannerEmpty'))
+          : h('ul', { className: 'lo-list lo-plans' }, plans.map((plan) => h('li', { key: plan.id, className: 'lo-plan' },
+            h('div', { className: 'lo-plan-head' },
+              h('span', { className: 'lo-plan-title' }, monthDay(plan.first) + ' – ' + monthDay(plan.last)),
+              h('span', { className: 'lo-plan-badge' }, t('plannerResult', { n: plan.continuous }))),
+            h('div', { className: 'lo-plan-meta' },
+              t('plannerCost', { n: plan.cost }),
+              ' · ',
+              t('plannerRatio', { n: (Math.round(plan.ratio * 100) / 100).toFixed(2) })),
+            h('div', { className: 'lo-plan-dates' }, t('plannerLeaves') + '：' + plan.leaveDates.map(monthDay).join('、')),
+            plan.makeup.length ? h('div', { className: 'lo-plan-warn' }, t('makeupDays', { dates: plan.makeup.map(monthDay).join('、') })) : null))))
+    }
+
+    /* ------------------------------------------------------------------ *
+     * 10. Fun Lab
+     * ------------------------------------------------------------------ */
+
+    function FunView({ state, now }) {
+      const work = workStatus(state.profile, now)
+      const payday = nextPayday(state.profile, now)
+      const fun = dailyFun(startOfDay(now))
+      const level = petLevel(state.pet.xp)
+      const into = state.pet.xp % 50
+      const today = toISO(startOfDay(now))
+
+      const petTheBlob = () => {
+        patch({ pet: { xp: state.pet.xp + 5, lastPet: today } })
+      }
+
+      const workValue = work.state === 'working'
+        ? (LANG === 'en' ? Math.floor(work.minutes / 60) + 'h ' + (work.minutes % 60) + 'm' : Math.floor(work.minutes / 60) + ' 小时 ' + (work.minutes % 60) + ' 分')
+        : work.state === 'before'
+          ? (LANG === 'en' ? work.minutes + ' min' : work.minutes + ' 分钟')
+          : t('dayOff')
+
+      return h('div', { className: 'lo-view' },
+        h('div', { className: 'lo-duo' },
+          h('section', { className: 'lo-tile' },
+            h('span', { className: 'lo-tile-label' }, work.state === 'working' ? t('workUntil') : work.state === 'before' ? t('workStartIn') : t('dayOff')),
+            h('span', { className: 'lo-tile-value' }, workValue),
+            h('span', { className: 'lo-tile-meta' }, state.profile.workStart + ' – ' + state.profile.workEnd)),
+          h('section', { className: 'lo-tile' },
+            h('span', { className: 'lo-tile-label' }, t('payday')),
+            h('span', { className: 'lo-tile-value' }, payday ? (LANG === 'en' ? diffDays(startOfDay(now), payday) + ' d' : diffDays(startOfDay(now), payday) + ' 天') : t('none')),
+            h('span', { className: 'lo-tile-meta' }, payday ? formatDate(payday) : t('none')))),
+        h(Card, { title: t('funTitle') },
+          h('div', { className: 'lo-meters' },
+            h(Meter, { label: t('slackIndex'), value: fun.slack }),
+            h(Meter, { label: t('coffeeIndex'), value: fun.coffee }),
+            h(Meter, { label: t('moodIndex'), value: 50 + (fun.slack % 50) })),
+          h('p', { className: 'lo-hint' }, t('forFun'))),
+        h('section', { className: 'lo-pet' },
+          h('div', { className: 'lo-pet-art' }, h(Mascot, { size: 96, mood: petMood(now) })),
+          h('div', { className: 'lo-pet-body' },
+            h('p', { className: 'lo-pet-name' }, t('petTitle')),
+            h('p', { className: 'lo-pet-level' }, t('petLevel', { n: level }) + ' · ' + t('petXp', { n: state.pet.xp })),
+            h('div', { className: 'lo-progress lo-progress-sm' }, h('i', { style: { width: Math.round((into / 50) * 100) + '%' } })),
+            h('p', { className: 'lo-hint' }, t('petHint'))),
+          h(Button, { onClick: petTheBlob }, t('petAction'))),
+        h(Card, { title: t('achievements'), action: h('span', { className: 'lo-count' }, Object.keys(state.achievements).length + ' / ' + ACHIEVEMENTS.length) },
+          h('div', { className: 'lo-achievements' }, ACHIEVEMENTS.map((item) => {
+            const unlockedAt = state.achievements[item.id]
+            const parts = item.title.split('|')
+            const title = LANG === 'en' ? parts[1] || parts[0] : parts[0]
+            return h('div', { key: item.id, className: cx('lo-achievement', unlockedAt && 'lo-achievement-on') },
+              h('span', { className: 'lo-achievement-dot' }),
+              h('div', null,
+                h('span', { className: 'lo-achievement-name' }, title),
+                h('span', { className: 'lo-achievement-meta' }, unlockedAt ? unlockedAt : t('locked'))))
+          }))))
+    }
+
+    function Meter({ label, value }) {
+      return h('div', { className: 'lo-meter' },
+        h('div', { className: 'lo-meter-head' },
+          h('span', null, label),
+          h('b', null, value)),
+        h('div', { className: 'lo-progress lo-progress-sm' }, h('i', { style: { width: value + '%' } })))
+    }
+
+    /* ------------------------------------------------------------------ *
+     * 11. Me — profile, work schedule, goals, capsules, data
+     * ------------------------------------------------------------------ */
+
+    function MeView({ state }) {
+      const fileRef = useRef(null)
+      const [opened, setOpened] = useState([])
+      const [importError, setImportError] = useState('')
+      const [goalDraft, setGoalDraft] = useState({ title: '', category: 'life', target: '' })
+      const [capsuleDraft, setCapsuleDraft] = useState({ title: '', unlockDate: '', body: '' })
+      const [capsuleError, setCapsuleError] = useState('')
+      const today = startOfDay(new Date())
+
+      const addGoal = () => {
+        if (!goalDraft.title.trim()) return
+        patch({ goals: state.goals.concat([{ id: uid('goal'), title: goalDraft.title.trim(), category: goalDraft.category, target: goalDraft.target, progress: 0, done: false, note: '' }]) })
+        setGoalDraft({ title: '', category: 'life', target: '' })
+      }
+
+      const addCapsule = () => {
+        if (!capsuleDraft.title.trim() || !capsuleDraft.body.trim()) return setCapsuleError(t('errName'))
+        if (!parseISO(capsuleDraft.unlockDate)) return setCapsuleError(t('errDate'))
+        patch({ capsules: state.capsules.concat([{ id: uid('cap'), title: capsuleDraft.title.trim(), body: capsuleDraft.body, unlockDate: capsuleDraft.unlockDate, createdAt: toISO(new Date()) }]) })
+        setCapsuleDraft({ title: '', unlockDate: '', body: '' })
+        setCapsuleError('')
+      }
+
+      const onFile = async (event) => {
+        const file = event.target.files && event.target.files[0]
+        if (!file) return
+        try {
+          importData(await file.text())
+          setImportError('')
+        } catch (error) {
+          setImportError(t('errImport'))
+        }
+        event.target.value = ''
+      }
+
+      return h('div', { className: 'lo-view' },
+        h(Card, { title: t('profile') },
+          h('div', { className: 'lo-form' },
+            h(Field, { label: t('name') }, h(TextInput, { value: state.profile.name, onChange: (value) => patchProfile({ name: value }), placeholder: t('namePlaceholder') })),
+            h(Field, { label: t('birthDate') }, h(DateField, { value: state.profile.birthDate, onChange: (value) => patchProfile({ birthDate: value }), max: today })),
+            h(Field, { label: t('sex') }, h(Select, {
+              value: state.profile.sex,
+              onChange: (value) => patchProfile({ sex: value }),
+              options: [
+                { value: '', label: t('sexUnset') },
+                { value: 'male', label: t('sexMale') },
+                { value: 'female55', label: t('sexFemale55') },
+                { value: 'female50', label: t('sexFemale50') },
+              ],
+            })),
+            h(Field, { label: t('retireDate') }, h(Select, {
+              value: state.profile.retireMode,
+              onChange: (value) => patchProfile({ retireMode: value }),
+              options: [{ value: 'auto', label: t('retireAuto') }, { value: 'manual', label: t('retireManual') }],
+            })),
+            state.profile.retireMode === 'manual'
+              ? h(Field, { label: t('retireDate') }, h(DateField, { value: state.profile.retireDate, onChange: (value) => patchProfile({ retireDate: value }) }))
+              : null,
+            state.profile.retireMode === 'auto'
+              ? h(Field, { label: t('flex') }, h(Select, {
+                value: String(state.profile.flexMonths),
+                onChange: (value) => patchProfile({ flexMonths: Number(value) }),
+                options: [
+                  { value: '-36', label: t('flexEarly', { n: 3 }) },
+                  { value: '-24', label: t('flexEarly', { n: 2 }) },
+                  { value: '-12', label: t('flexEarly', { n: 1 }) },
+                  { value: '0', label: t('flexNone') },
+                  { value: '12', label: t('flexLate', { n: 1 }) },
+                  { value: '24', label: t('flexLate', { n: 2 }) },
+                  { value: '36', label: t('flexLate', { n: 3 }) },
+                ],
+              }))
+              : null,
+            h(Field, { label: t('careerStart') }, h(DateField, { value: state.profile.careerStart, onChange: (value) => patchProfile({ careerStart: value }), max: today })),
+            h(Field, { label: t('language') }, h(Select, {
+              value: state.settings.lang,
+              onChange: (value) => patchSettings({ lang: value }),
+              options: [{ value: 'zh', label: '中文' }, { value: 'en', label: 'English' }],
+            })))),
+        h(Card, { title: t('workSchedule') },
+          h('div', { className: 'lo-form' },
+            h(Field, { label: t('workStart') }, h(TextInput, { value: state.profile.workStart, onChange: (value) => patchProfile({ workStart: value }) })),
+            h(Field, { label: t('workEnd') }, h(TextInput, { value: state.profile.workEnd, onChange: (value) => patchProfile({ workEnd: value }) })),
+            h(Field, { label: t('salaryDay') }, h(TextInput, { value: state.profile.salaryDay, onChange: (value) => patchProfile({ salaryDay: Number(value) || '' }) })),
+            h(Field, { label: t('leaveQuota') }, h(TextInput, { value: state.profile.leaveQuota, onChange: (value) => patchProfile({ leaveQuota: Number(value) || 0 }) })),
+            h(Field, { label: t('leaveCarry') }, h(TextInput, { value: state.profile.leaveCarry, onChange: (value) => patchProfile({ leaveCarry: Number(value) || 0 }) }))),
+          h('div', { className: 'lo-workdays' }, [1, 2, 3, 4, 5, 6, 7].map((day) => h('label', { key: day, className: 'lo-check' },
+            h('input', {
+              type: 'checkbox',
+              checked: state.profile.workdays.includes(day),
+              onChange: (event) => {
+                const next = event.target.checked
+                  ? state.profile.workdays.concat([day]).sort((a, b) => a - b)
+                  : state.profile.workdays.filter((item) => item !== day)
+                patchProfile({ workdays: next })
+              },
+            }),
+            h('span', null, LANG === 'en' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][day - 1] : '周' + ['一', '二', '三', '四', '五', '六', '日'][day - 1]))))),
+        h(Card, { title: t('goals'), action: h('span', { className: 'lo-count' }, state.goals.length) },
+          h('div', { className: 'lo-form' },
+            h(Field, { label: t('goalTitle') }, h(TextInput, { value: goalDraft.title, onChange: (value) => setGoalDraft(Object.assign({}, goalDraft, { title: value })) })),
+            h(Field, { label: t('goalTarget') }, h(DateField, { value: goalDraft.target, onChange: (value) => setGoalDraft(Object.assign({}, goalDraft, { target: value })) })),
+            h(Button, { variant: 'primary', onClick: addGoal }, t('goalAdd'))),
+          state.goals.length === 0 ? h('p', { className: 'lo-empty' }, t('goalEmpty')) : h('ul', { className: 'lo-list' }, state.goals.map((goal) => h('li', { key: goal.id, className: 'lo-goal' },
+            h('div', { className: 'lo-goal-head' },
+              h('span', { className: 'lo-row-name' }, goal.title, goal.target ? h('em', { className: 'lo-chip' }, formatDate(parseISO(goal.target))) : null),
+              h('span', { className: 'lo-row-days' }, goal.progress + '%')),
+            h('input', {
+              type: 'range', min: 0, max: 100, value: goal.progress,
+              className: 'lo-range',
+              onChange: (event) => patch({ goals: state.goals.map((item) => item.id === goal.id ? Object.assign({}, item, { progress: Number(event.target.value), done: Number(event.target.value) >= 100 }) : item) }),
+            }),
+            h('div', { className: 'lo-goal-foot' },
+              h('button', { type: 'button', className: 'lo-link lo-danger', onClick: () => patch({ goals: state.goals.filter((item) => item.id !== goal.id) }) }, t('delete'))))))),
+        h(Card, { title: t('capsules'), action: h('span', { className: 'lo-count' }, state.capsules.length) },
+          h('div', { className: 'lo-form' },
+            h(Field, { label: t('name') }, h(TextInput, { value: capsuleDraft.title, onChange: (value) => setCapsuleDraft(Object.assign({}, capsuleDraft, { title: value })) })),
+            h(Field, { label: t('goalTarget') }, h(DateField, { value: capsuleDraft.unlockDate, onChange: (value) => setCapsuleDraft(Object.assign({}, capsuleDraft, { unlockDate: value })) })),
+            h('label', { className: 'lo-field lo-field-wide' },
+              h('span', { className: 'lo-field-label' }, t('capsuleBody')),
+              h('textarea', {
+                className: 'lo-input lo-textarea',
+                value: capsuleDraft.body,
+                onChange: (event) => setCapsuleDraft(Object.assign({}, capsuleDraft, { body: event.target.value })),
+              })),
+            h(Button, { variant: 'primary', onClick: addCapsule }, t('capsuleAdd'))),
+          capsuleError ? h('p', { className: 'lo-error' }, capsuleError) : null,
+          state.capsules.length === 0 ? h('p', { className: 'lo-empty' }, t('capsuleEmpty')) : h('ul', { className: 'lo-list' }, state.capsules.map((capsule) => {
+            const unlock = parseISO(capsule.unlockDate)
+            const ready = unlock && diffDays(today, unlock) <= 0
+            const open = ready && opened.includes(capsule.id)
+            return h('li', { key: capsule.id, className: 'lo-capsule' },
+              h('div', { className: 'lo-goal-head' },
+                h('span', { className: 'lo-row-name' }, capsule.title),
+                h('span', { className: 'lo-chip' }, capsule.unlockDate)),
+              open
+                ? h('p', { className: 'lo-capsule-body' }, capsule.body)
+                : h('p', { className: 'lo-hint' }, ready ? t('capsuleOpen') : t('capsuleLocked', { date: capsule.unlockDate })),
+              h('div', { className: 'lo-goal-foot' },
+                ready && !open ? h('button', { type: 'button', className: 'lo-link', onClick: () => setOpened(opened.concat([capsule.id])) }, t('capsuleUnlock')) : null,
+                h('button', { type: 'button', className: 'lo-link lo-danger', onClick: () => patch({ capsules: state.capsules.filter((item) => item.id !== capsule.id) }) }, t('delete'))))
+          }))),
+        h(Card, { title: t('data') },
+          h('p', { className: 'lo-hint' }, t('dataHint')),
+          h('div', { className: 'lo-actions' },
+            h(Button, { onClick: exportData }, t('exportJson')),
+            h(Button, { onClick: () => fileRef.current && fileRef.current.click() }, t('importJson')),
+            h(Button, { variant: 'ghost', onClick: () => { if (window.confirm(t('confirmReset'))) resetData() } }, t('resetData'))),
+          h('input', { type: 'file', accept: 'application/json', ref: fileRef, style: { display: 'none' }, onChange: onFile }),
+          importError ? h('p', { className: 'lo-error' }, importError) : null),
+        h(Card, { title: t('about') },
+          h('p', { className: 'lo-hint' }, 'LifeOS · ' + t('slogan')),
+          h('p', { className: 'lo-hint' }, t('version') + ' 1.0.0 · MIT License')))
+    }
+
+    /* ------------------------------------------------------------------ *
+     * 12. Shell
+     * ------------------------------------------------------------------ */
+
+    const TABS = [
+      { id: 'home', label: 'tabHome', icon: 'home' },
+      { id: 'calendar', label: 'tabCalendar', icon: 'calendar' },
+      { id: 'fun', label: 'tabFun', icon: 'spark' },
+      { id: 'me', label: 'tabMe', icon: 'user' },
+    ]
+
+    function TabIcon({ name, active }) {
+      const color = active ? 'currentColor' : 'currentColor'
+      const props = { stroke: color, strokeWidth: 1.7, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' }
+      const frame = { width: 20, height: 20, viewBox: '0 0 24 24', 'aria-hidden': true, style: { display: 'block' } }
+      if (name === 'home') {
+        return h('svg', frame,
+          h('path', Object.assign({ d: 'M4 11l8-6.5 8 6.5v8.2a1 1 0 0 1-1 1h-4.6v-5.4H9.6v5.4H5a1 1 0 0 1-1-1z' }, props)))
+      }
+      if (name === 'calendar') {
+        return h('svg', frame,
+          h('rect', Object.assign({ x: 4, y: 5.5, width: 16, height: 14.5, rx: 3 }, props)),
+          h('path', Object.assign({ d: 'M4 10h16M8.5 3.5v4M15.5 3.5v4' }, props)))
+      }
+      if (name === 'spark') {
+        return h('svg', frame,
+          h('path', Object.assign({ d: 'M12 3.5l1.7 4.8 4.8 1.7-4.8 1.7L12 16.5l-1.7-4.8L5.5 10l4.8-1.7z' }, props)),
+          h('path', Object.assign({ d: 'M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z' }, props)))
+      }
+      return h('svg', frame,
+        h('circle', Object.assign({ cx: 12, cy: 8, r: 3.4 }, props)),
+        h('path', Object.assign({ d: 'M4.8 20c.8-3.7 3.6-5.6 7.2-5.6s6.4 1.9 7.2 5.6' }, props)))
+    }
+
+    function App() {
+      const state = useLifeOS()
+      const now = useNow(30000)
+      const [tab, setTab] = useState(() => state.settings.tab || 'home')
+      const [counted, setCounted] = useState(false)
+
+      useEffect(() => {
+        if (counted) return
+        setCounted(true)
+        bumpStat('visits')
+      }, [counted])
+
+      const switchTab = (next) => {
+        setTab(next)
+        patchSettings({ tab: next })
+      }
+
+      return h('div', { className: 'lo-root' },
+        h('style', null, CSS),
+        h('div', { className: 'lo-scroll' },
+          h('div', { className: 'lo-inner' },
+            h('header', { className: 'lo-top' },
+              h('div', { className: 'lo-brand' },
+                h(Mascot, { size: 36, mood: 'happy' }),
+                h('div', null,
+                  h('h1', { className: 'lo-title' }, 'LifeOS'),
+                  h('p', { className: 'lo-slogan' }, t('slogan')))),
+              h('span', { className: 'lo-date' }, formatDate(startOfDay(now)))),
+            tab === 'home'
+              ? h(HomeView, { state, now, onTab: switchTab })
+              : tab === 'calendar'
+                ? h(CalendarView, { state, now })
+                : tab === 'fun'
+                  ? h(FunView, { state, now })
+                  : h(MeView, { state }))),
+        h('nav', { className: 'lo-nav' }, TABS.map((item) => h('button', {
+          key: item.id,
+          type: 'button',
+          className: cx('lo-nav-item', tab === item.id && 'lo-nav-active'),
+          onClick: () => switchTab(item.id),
+        }, h(TabIcon, { name: item.icon, active: tab === item.id }), h('span', null, t(item.label))))))
+    }
+
+    /* ------------------------------------------------------------------ *
+     * 13. Styles — host tokens for surfaces, LifeOS palette for accents
+     * ------------------------------------------------------------------ */
+
+    const CSS = `
+.lo-root{--lo-forest:#354B43;--lo-peach:#E8B88F;--lo-sage:#DDE8D8;--lo-blush:#E9D9CE;--lo-sand:#D6C9AA;height:100%;min-height:0;display:flex;flex-direction:column;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:14px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;overflow:hidden;-webkit-font-smoothing:antialiased}
+.lo-root *{box-sizing:border-box}
+.lo-scroll{flex:1;min-height:0;overflow:auto}
+.lo-inner{max-width:880px;margin:0 auto;padding:34px 30px 40px}
+.lo-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:22px}
+.lo-brand{display:flex;align-items:center;gap:11px}
+.lo-title{margin:0;font-size:17px;font-weight:600;letter-spacing:.01em}
+.lo-slogan{margin:1px 0 0;font-size:12px;color:var(--dsw-alias-label-secondary)}
+.lo-date{font-size:12px;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums;white-space:nowrap;padding-top:5px}
+.lo-view{display:flex;flex-direction:column;gap:16px}
+.lo-card{position:relative;padding:20px 22px;border:1px solid var(--dsw-alias-border-l1);border-radius:18px;background:var(--dsw-alias-bg-base);box-shadow:0 1px 1px rgba(16,24,40,.03),0 4px 14px -12px rgba(16,24,40,.11)}
+@supports (box-shadow:0 0 0 1px color-mix(in srgb,red 10%,transparent)){
+.lo-card{box-shadow:0 1px 1px color-mix(in srgb,var(--dsw-alias-label-primary) 3%,transparent),0 4px 14px -12px color-mix(in srgb,var(--dsw-alias-label-primary) 13%,transparent)}
+}
+.lo-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.lo-card-title{margin:0;font-size:13px;font-weight:600;letter-spacing:.01em}
+.lo-count{font-size:12px;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}
+.lo-hero-row{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:16px;align-items:stretch}
+.lo-hero-row.lo-hero-single{grid-template-columns:minmax(0,1fr)}
+.lo-hero{display:flex;flex-direction:column;padding:24px 26px 26px;border:1px solid var(--dsw-alias-border-l1);border-radius:22px;background:var(--dsw-alias-bg-base);box-shadow:0 1px 1px rgba(16,24,40,.03),0 10px 26px -18px rgba(16,24,40,.2);overflow:hidden}
+@supports (box-shadow:0 0 0 1px color-mix(in srgb,red 10%,transparent)){
+.lo-hero{box-shadow:0 1px 1px color-mix(in srgb,var(--dsw-alias-label-primary) 4%,transparent),0 10px 26px -18px color-mix(in srgb,var(--dsw-alias-label-primary) 22%,transparent)}
+}
+.lo-hero-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex:1}
+.lo-hero-label{margin:0;font-size:12.5px;color:var(--dsw-alias-label-secondary)}
+.lo-hero-value{display:flex;align-items:baseline;gap:10px;margin:10px 0 0}
+.lo-hero-num{font-size:clamp(52px,8.5vw,86px);line-height:.88;font-weight:600;letter-spacing:-.05em;font-variant-numeric:tabular-nums}
+.lo-hero-unit{font-size:14px;color:var(--dsw-alias-label-secondary)}
+.lo-hero-span{margin:14px 0 0;font-size:15px;font-variant-numeric:tabular-nums}
+.lo-hero-date{margin:3px 0 0;font-size:12.5px;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}
+.lo-hero-tag{margin:6px 0 0;font-size:11.5px;color:var(--dsw-alias-label-secondary)}
+.lo-hero-art{align-self:center;opacity:.95}
+.lo-hero-empty{gap:16px}
+.lo-hero-empty .lo-hero-top{flex:0 0 auto;align-items:center}
+.lo-hero-empty-text{margin:4px 0 0;max-width:26em;font-size:13px;color:var(--dsw-alias-label-secondary)}
+.lo-next{display:flex;flex-direction:column;padding:24px 24px 22px;border:1px solid var(--dsw-alias-border-l1);border-radius:22px;background:var(--dsw-alias-bg-base);box-shadow:0 1px 1px rgba(16,24,40,.03),0 4px 14px -12px rgba(16,24,40,.11)}
+@supports (box-shadow:0 0 0 1px color-mix(in srgb,red 10%,transparent)){
+.lo-next{box-shadow:0 1px 1px color-mix(in srgb,var(--dsw-alias-label-primary) 3%,transparent),0 4px 14px -12px color-mix(in srgb,var(--dsw-alias-label-primary) 13%,transparent)}
+}
+.lo-next-label{margin:0;font-size:12.5px;color:var(--dsw-alias-label-secondary)}
+.lo-next-value{display:flex;align-items:baseline;gap:8px;margin:14px 0 0}
+.lo-next-num{font-size:clamp(40px,6vw,58px);line-height:.95;font-weight:600;letter-spacing:-.045em;font-variant-numeric:tabular-nums}
+.lo-next-unit{font-size:12.5px;color:var(--dsw-alias-label-secondary)}
+.lo-next-name{margin:8px 0 0;font-size:16px;font-weight:600}
+.lo-next-meta{margin:auto 0 0;padding-top:16px;font-size:12.5px;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}
+.lo-next-active{margin:5px 0 0;font-size:12px;color:var(--lo-forest)}
+.lo-next-work{margin:4px 0 0;font-size:12px;color:var(--dsw-alias-label-secondary)}
+.lo-quick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.lo-quick-item{display:flex;flex-direction:column;gap:3px;padding:14px 16px;border:1px solid var(--dsw-alias-border-l1);border-radius:14px;background:var(--dsw-alias-bg-base)}
+.lo-quick-label{font-size:11.5px;color:var(--dsw-alias-label-secondary)}
+.lo-quick-value{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+.lo-quote{display:flex;align-items:center;gap:14px;padding:16px 20px;border:1px dashed var(--dsw-alias-border-l2);border-radius:16px}
+.lo-quote-text{margin:0;font-size:13.5px}
+.lo-quote-label{margin:3px 0 0;font-size:11px;color:var(--dsw-alias-label-secondary)}
+.lo-progress-wrap{margin-top:22px}
+.lo-progress-head{display:flex;justify-content:space-between;font-size:12px;color:var(--dsw-alias-label-secondary);margin-bottom:8px}
+.lo-progress{height:4px;border-radius:99px;background:var(--dsw-alias-border-l1);overflow:hidden}
+.lo-progress > i{display:block;height:100%;min-width:2px;border-radius:99px;background:var(--dsw-alias-brand-primary)}
+.lo-progress-sm{height:5px;margin-top:7px}
+.lo-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:13px 16px;align-items:end}
+.lo-form-inline{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.lo-field{display:flex;flex-direction:column;gap:6px;min-width:0;font-size:11.5px;color:var(--dsw-alias-label-secondary)}
+.lo-field-wide{grid-column:1/-1}
+.lo-field-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lo-input{height:34px;min-width:0;padding:0 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px}
+.lo-input:focus{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-1px}
+.lo-input-invalid{border-color:var(--dsw-alias-state-error-primary)}
+.lo-textarea{height:auto;min-height:92px;padding:9px 10px;resize:vertical;line-height:1.6}
+.lo-check{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--dsw-alias-label-secondary);cursor:pointer;user-select:none}
+.lo-check input{margin:0;accent-color:var(--dsw-alias-brand-primary)}
+.lo-btn{height:32px;padding:0 13px;border-radius:8px;border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:12.5px;cursor:pointer;white-space:nowrap}
+.lo-btn:hover{background:var(--dsw-alias-bg-layer-2)}
+.lo-btn-primary{background:var(--dsw-alias-brand-primary);border-color:transparent;color:#fff}
+.lo-btn-primary:hover{opacity:.92;background:var(--dsw-alias-brand-primary)}
+.lo-btn-ghost{border-style:dashed}
+.lo-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+.lo-list{list-style:none;margin:6px 0 0;padding:0}
+.lo-row{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--dsw-alias-border-l1)}
+.lo-row:last-child{border-bottom:0;padding-bottom:2px}
+.lo-row-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.lo-row-name{display:flex;align-items:center;gap:7px;font-size:13.5px}
+.lo-row-meta{font-size:11.5px;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}
+.lo-row-days{font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--dsw-alias-label-primary)}
+.lo-row-days em{font-style:normal;margin-left:3px;font-size:11px;color:var(--dsw-alias-label-secondary)}
+.lo-chip{font-style:normal;font-size:10.5px;line-height:17px;padding:0 6px;border-radius:5px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);white-space:nowrap}
+.lo-link{border:0;background:none;padding:2px 0;font:inherit;font-size:12px;color:var(--dsw-alias-label-secondary);cursor:pointer}
+.lo-link:hover{color:var(--dsw-alias-label-primary)}
+.lo-danger:hover{color:var(--dsw-alias-state-error-primary)}
+.lo-empty{margin:6px 0 0;font-size:12.5px;color:var(--dsw-alias-label-secondary)}
+.lo-hint{margin:6px 0 0;font-size:12px;color:var(--dsw-alias-label-secondary)}
+.lo-error{margin:8px 0 0;font-size:12px;color:var(--dsw-alias-state-error-primary)}
+.lo-note{margin:0 0 6px;font-size:12.5px;color:var(--dsw-alias-label-secondary)}
+.lo-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.lo-stat{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:1px solid var(--dsw-alias-border-l1);border-radius:11px}
+.lo-stat-label{font-size:11px;color:var(--dsw-alias-label-secondary)}
+.lo-stat b{font-size:15px;font-variant-numeric:tabular-nums}
+.lo-month{margin:4px 0 10px}
+.lo-weekdays,.lo-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.lo-weekday{font-size:11px;color:var(--dsw-alias-label-secondary);text-align:center;padding:4px 0}
+.lo-week{margin-top:4px}
+.lo-day{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:6px 4px;border:1px solid transparent;border-radius:11px;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.lo-day:hover{background:var(--dsw-alias-bg-layer-2)}
+.lo-day-num{font-size:13px;font-variant-numeric:tabular-nums}
+.lo-day-outside .lo-day-num{color:var(--dsw-alias-label-secondary);opacity:.55}
+.lo-day-holiday .lo-day-num{color:var(--lo-forest);font-weight:600}
+.lo-day-today{border-color:var(--dsw-alias-border-l2)}
+.lo-day-selected{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-border-l2)}
+.lo-day-mark{width:4px;height:4px;border-radius:50%;background:var(--lo-peach)}
+.lo-day-mark-work{background:var(--dsw-alias-label-secondary)}
+.lo-day-mark-leave{background:var(--dsw-alias-brand-primary)}
+.lo-legend{display:flex;flex-wrap:wrap;gap:14px;font-size:11.5px;color:var(--dsw-alias-label-secondary)}
+.lo-legend span{display:inline-flex;align-items:center;gap:6px}
+.lo-dot{width:6px;height:6px;border-radius:50%;display:inline-block}
+.lo-dot-holiday{background:var(--lo-peach)}
+.lo-dot-leave{background:var(--dsw-alias-brand-primary)}
+.lo-dot-work{background:var(--dsw-alias-label-secondary)}
+.lo-month-nav{display:flex;gap:12px;flex-wrap:wrap}
+.lo-duo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.lo-tile{display:flex;flex-direction:column;gap:4px;padding:18px 20px;border:1px solid var(--dsw-alias-border-l1);border-radius:16px;background:var(--dsw-alias-bg-base)}
+.lo-tile-label{font-size:11.5px;color:var(--dsw-alias-label-secondary)}
+.lo-tile-value{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.3}
+.lo-tile-meta{font-size:11.5px;color:var(--dsw-alias-label-secondary)}
+.lo-meters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.lo-meter-head{display:flex;justify-content:space-between;font-size:12px;color:var(--dsw-alias-label-secondary)}
+.lo-meter-head b{color:var(--dsw-alias-label-primary);font-variant-numeric:tabular-nums}
+.lo-pet{display:flex;align-items:center;gap:18px;padding:20px 22px;border:1px solid var(--dsw-alias-border-l1);border-radius:18px;background:var(--dsw-alias-bg-base)}
+.lo-pet-body{flex:1;min-width:0}
+.lo-pet-name{margin:0;font-size:15px;font-weight:600}
+.lo-pet-level{margin:2px 0 0;font-size:12px;color:var(--dsw-alias-label-secondary)}
+.lo-achievements{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.lo-achievement{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--dsw-alias-border-l1);border-radius:11px;opacity:.55}
+.lo-achievement-on{opacity:1}
+.lo-achievement-dot{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--dsw-alias-border-l2);flex:none}
+.lo-achievement-on .lo-achievement-dot{background:var(--lo-peach);border-color:var(--lo-peach)}
+.lo-achievement-name{display:block;font-size:12.5px}
+.lo-achievement-meta{display:block;font-size:11px;color:var(--dsw-alias-label-secondary)}
+.lo-workdays{display:flex;flex-wrap:wrap;gap:10px 14px;margin-top:12px}
+.lo-goal{padding:10px 0;border-bottom:1px solid var(--dsw-alias-border-l1)}
+.lo-goal:last-child{border-bottom:0}
+.lo-goal-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.lo-goal-foot{display:flex;justify-content:flex-end;margin-top:4px}
+.lo-range{width:100%;margin:8px 0 0;accent-color:var(--dsw-alias-brand-primary)}
+.lo-capsule{padding:12px 0;border-bottom:1px solid var(--dsw-alias-border-l1)}
+.lo-capsule:last-child{border-bottom:0}
+.lo-capsule-body{margin:8px 0 0;padding:12px 14px;border-radius:10px;background:var(--dsw-alias-bg-layer-2);font-size:13px;white-space:pre-wrap}
+.lo-plans{margin-top:12px}
+.lo-plan{padding:12px 0;border-bottom:1px solid var(--dsw-alias-border-l1)}
+.lo-plan:last-child{border-bottom:0}
+.lo-plan-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.lo-plan-title{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+.lo-plan-badge{font-size:12px;color:var(--lo-forest);background:var(--lo-sage);padding:1px 8px;border-radius:6px}
+.lo-plan-meta{margin-top:3px;font-size:12px;color:var(--dsw-alias-label-secondary)}
+.lo-plan-dates{margin-top:2px;font-size:12px;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}
+.lo-plan-warn{margin-top:2px;font-size:11.5px;color:var(--dsw-alias-state-warn-primary)}
+.lo-nav{flex:none;display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:8px 10px 10px;border-top:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-base)}
+.lo-nav-item{display:flex;flex-direction:column;align-items:center;gap:4px;padding:7px 4px 5px;border:0;border-radius:11px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;cursor:pointer}
+.lo-nav-item:hover{background:var(--dsw-alias-bg-layer-2)}
+.lo-nav-active{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2)}
+@media (max-width:820px){
+.lo-inner{padding:24px 18px 28px}
+.lo-hero-row{grid-template-columns:minmax(0,1fr)}
+.lo-quick{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.lo-duo{grid-template-columns:minmax(0,1fr)}
+.lo-meters{grid-template-columns:minmax(0,1fr)}
+.lo-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+.lo-achievements{grid-template-columns:minmax(0,1fr)}
+.lo-hero{padding:20px}
+.lo-pet{flex-wrap:wrap}
+}
+`
+
+    /* ------------------------------------------------------------------ *
+     * 14. Registration
+     * ------------------------------------------------------------------ */
+
+    function PanelGlyph({ size, active }) {
+      const body = active ? '#F5F0E6' : 'currentColor'
+      const ink = active ? '#354B43' : 'currentColor'
+      return h('svg', {
+        width: size || 16, height: size || 16, viewBox: '0 0 24 24', 'aria-hidden': true,
+        style: { display: 'block' },
+      },
+      h('circle', { cx: 12, cy: 12, r: 8.2, fill: active ? body : 'none', stroke: ink, strokeWidth: active ? 0 : 1.7 }),
+      active
+        ? h('g', null,
+          h('circle', { cx: 9.6, cy: 11.2, r: 1.1, fill: ink }),
+          h('circle', { cx: 14.4, cy: 11.2, r: 1.1, fill: ink }),
+          h('path', { d: 'M9.6 14.4c.8.7 1.6 1 2.4 1s1.6-.3 2.4-1', stroke: ink, strokeWidth: 1.2, strokeLinecap: 'round', fill: 'none' }))
+        : null)
+    }
+
+    return {
+      inject: ['slots'],
+      /** Pure helpers exposed for the regression script. */
+      __internal: {
+        defaultState, sanitize, migrateLegacy, parseISO, parseAnyDate, toISO, diffDays, addDays,
+        breakdown, monthDay, retirementInfo, delayMonthsFor, addMonths, RETIRE_RULES,
+        HOLIDAY_DATA, dayInfo, isRestDay, holidayPeriods, holidayList: (entries) => entries,
+        customCountdowns, lifeEntries, leaveDays, leaveStats, planLeave, workStatus, nextPayday,
+        dailyFun, petLevel, petMood, monthGrid, ACHIEVEMENTS, withAchievements, hashString,
+      },
+      apply(ctx) {
+        setLang(currentState.settings.lang)
+
+        function Page() {
+          return h(App)
+        }
+
+        ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
+          name: 'sidebar.panellist',
+          id: PANEL_ID,
+          order: 40,
+          label: () => 'LifeOS',
+        }, PanelGlyph))
+
+        ctx.slots.inject('main', () => ctx.slots.register({
+          name: 'main',
+          key: PANEL_ID,
+        }, Page))
+      },
+    }
+  },
+})
