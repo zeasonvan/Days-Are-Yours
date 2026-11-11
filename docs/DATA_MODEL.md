@@ -25,7 +25,7 @@ interface DAYSState {
   leaves: { id, type, name, start, end, countsAsLeave, half: 'none'|'am'|'pm', note }[]
   goals: { id, title, category, target, progress, done, note }[]
   capsules: { id, title, body, unlockDate, createdAt }[]
-  pet: { xp, lastPet }
+  pet: { xp, lastPet, actions: { date, pat, feed, play, coffee, soothe } }
   achievements: Record<string, string>   // id -> unlocked date
   stats: { plannerRuns, exports, visits }
   settings: { lang: 'zh'|'en', showHolidays: boolean, tab: 'home'|'calendar'|'fun'|'me' }
@@ -48,6 +48,12 @@ interface DAYSState {
 - Separate key `days/weather-cache:v1`: `{ location, fetchedAt, data }`.
 - TTL 30 minutes; coordinates must match the current profile location or the cache is ignored.
 - Never part of the main state or the JSON export.
+
+## Pet interactions
+
+- `pet.actions.date` is the local day the counts belong to; a different date means the counts are treated as zero (no migration needed).
+- Each interaction adds XP and one count. Index effects are capped per day: mood +4, coffee +2, slack +2, regardless of how many times the blob is petted.
+- Counts are persisted with the main state, so they survive refresh and reset at midnight.
 
 ## 迁移
 

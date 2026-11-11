@@ -148,9 +148,14 @@ window.__ModuleLoader__.load({
       petPat: '摸摸|Pat',
       petFeed: '喂食|Feed',
       petPlay: '玩耍|Play',
+      petCoffee: '喝咖啡|Coffee',
+      petSoothe: '安抚|Soothe',
       petPatLine: '团子眯起眼睛蹭了蹭你。|The blob leans into your hand.',
       petFeedLine: '团子小口小口地吃完了。|The blob nibbles it all up.',
       petPlayLine: '团子滚了一圈，又滚回来。|The blob rolls around and comes back.',
+      petCoffeeLine: '团子捧着杯子吹了吹，慢慢喝了一口。|The blob holds the cup, blows, and takes a sip.',
+      petSootheLine: '团子安静下来，往你手边靠了靠。|The blob calms down and leans closer.',
+      petBonus: '今日互动加成：心情 +{mood} · 咖啡 +{coffee} · 摸鱼 +{slack}|Blob bonus today: mood +{mood} · coffee +{coffee} · slack +{slack}',
       petLevelUp: '团子升到 {n} 级了！|The blob reached level {n}!',
       addLeave: '添加请假|Add leave',
       leaveType: '假期类型|Leave type',
@@ -240,7 +245,7 @@ window.__ModuleLoader__.load({
       confirmImport: '导入会替换当前全部 DAYS 数据，先导出备份了吗？继续？|Importing replaces all DAYS data on this device. Continue?',
       retireDateManual: '指定退休日期|Retirement date (manual)',
       noYearData: '这一年的放假安排还没有收录|No holiday data for this year yet',
-      dataNotice: '2025–2027 数据来自国务院公告的放假安排；最新年份请以官方最终安排为准。|2025–2027 data mirrors State Council notices; the newest year may still change.',
+      dataNotice: '数据来自国务院公告的放假安排；最新年份请以官方最终安排为准。|Data mirrors State Council notices; the newest year may still change.',
       weekend: '周末|Weekend',
       makeupShort: '班|W',
       makeupFor: '补班（{name}）|Make-up day for {name}',
@@ -488,7 +493,7 @@ window.__ModuleLoader__.load({
           location: null,
         },
         countdowns: [], leaves: [], goals: [], capsules: [],
-        pet: { xp: 0, lastPet: '' },
+        pet: { xp: 0, lastPet: '', actions: { date: '', pat: 0, feed: 0, play: 0, coffee: 0, soothe: 0 } },
         achievements: {}, stats: { plannerRuns: 0, exports: 0, visits: 0 },
         settings: { lang: 'zh', showHolidays: true, tab: 'home' },
       }
@@ -566,6 +571,15 @@ window.__ModuleLoader__.load({
       const pet = source.pet && typeof source.pet === 'object' ? source.pet : {}
       base.pet.xp = Number.isFinite(pet.xp) && pet.xp >= 0 ? pet.xp : 0
       base.pet.lastPet = typeof pet.lastPet === 'string' ? pet.lastPet : ''
+      const actions = pet.actions && typeof pet.actions === 'object' ? pet.actions : {}
+      base.pet.actions = {
+        date: typeof actions.date === 'string' ? actions.date : '',
+        pat: Math.max(0, Math.floor(Number(actions.pat) || 0)),
+        feed: Math.max(0, Math.floor(Number(actions.feed) || 0)),
+        play: Math.max(0, Math.floor(Number(actions.play) || 0)),
+        coffee: Math.max(0, Math.floor(Number(actions.coffee) || 0)),
+        soothe: Math.max(0, Math.floor(Number(actions.soothe) || 0)),
+      }
 
       const stats = source.stats && typeof source.stats === 'object' ? source.stats : {}
       base.stats.plannerRuns = Number.isFinite(stats.plannerRuns) ? stats.plannerRuns : 0
@@ -1093,9 +1107,10 @@ window.__ModuleLoader__.load({
       if (kind === 'clear') { mood += 10; moodReason = 'moodReasonClear' }
       else if (kind === 'rain' || kind === 'drizzle' || kind === 'storm' || kind === 'snow') { mood -= 12; moodReason = 'moodReasonRain' }
 
-      const slackValue = clampScore(slack)
-      const coffeeValue = clampScore(coffee)
-      const moodValue = clampScore(mood)
+      const bonus = interactionBonus(state, now)
+      const slackValue = clampScore(slack + bonus.slack)
+      const coffeeValue = clampScore(coffee + bonus.coffee)
+      const moodValue = clampScore(mood + bonus.mood)
       const reason = (key, params) => {
         const raw = t(key)
         if (!params) return raw
@@ -1108,6 +1123,7 @@ window.__ModuleLoader__.load({
         slack: slackValue,
         coffee: coffeeValue,
         mood: moodValue,
+        bonus,
         reasons: {
           slack: reason(slackReason, { n: work.state === 'working' ? work.minutes : nextHoliday ? nextHoliday.days : 0 }),
           coffee: reason(coffeeReason),
@@ -1117,6 +1133,31 @@ window.__ModuleLoader__.load({
     }
 
     function petLevel(xp) { return 1 + Math.floor(Math.max(0, xp) / 50) }
+
+    const PET_ACTION_IDS = ['pat', 'feed', 'play', 'coffee', 'soothe']
+
+    function petActionsFor(state, now) {
+      const today = toISO(startOfDay(now))
+      const actions = state.pet && state.pet.actions
+      if (!actions || actions.date !== today) {
+        return { date: today, pat: 0, feed: 0, play: 0, coffee: 0, soothe: 0 }
+      }
+      return actions
+    }
+
+    /**
+     * Interaction nudges the daily indices, but only a little: mood +4, coffee
+     * +2, slack +2 at most per day, however often the blob is petted.
+     */
+    function interactionBonus(state, now) {
+      const actions = petActionsFor(state, now)
+      const total = PET_ACTION_IDS.reduce((sum, id) => sum + (actions[id] || 0), 0)
+      return {
+        mood: Math.min(4, total),
+        coffee: Math.min(2, actions.coffee || 0),
+        slack: Math.min(2, actions.play || 0),
+      }
+    }
 
     function petMood(now) {
       const hour = now.getHours()
@@ -1252,7 +1293,7 @@ window.__ModuleLoader__.load({
     }
 
     /** Original mascot: a round "time blob" drawn with simple geometry. */
-    function Mascot({ size, mood }) {
+    function Mascot({ size, mood, action }) {
       const s = size || 64
       const closedEyes = mood === 'sleepy' || mood === 'cozy'
       const eyeRadius = mood === 'focused' ? 2.0 : 2.6
@@ -1261,22 +1302,34 @@ window.__ModuleLoader__.load({
         : mood === 'focused'
           ? 'M28 42h8'
           : 'M27 41c1.8 1.8 3.4 2.6 5 2.6s3.2-.8 5-2.6'
+
       return h('svg', {
         width: s, height: s, viewBox: '0 0 64 64', 'aria-hidden': true,
+        className: 'lo-mascot',
+        'data-action': action || '',
         style: { display: 'block', flex: 'none' },
       },
-      h('circle', { cx: 32, cy: 34, r: 22, fill: '#F5F0E6' }),
-      h('circle', { cx: 32, cy: 34, r: 22, fill: 'none', stroke: '#E8B88F', strokeWidth: 2.2, opacity: 0.7 }),
+      h('ellipse', { cx: 32, cy: 58, rx: 18, ry: 4, fill: '#354B43', opacity: 0.1 }),
+      h('g', { className: 'lo-arm lo-arm-left' },
+        h('rect', { x: 9, y: 34, width: 7.5, height: 15, rx: 3.75, fill: '#F5F0E6', stroke: '#E8B88F', strokeWidth: 1.5 })),
+      h('g', { className: 'lo-arm lo-arm-right' },
+        h('rect', { x: 47.5, y: 34, width: 7.5, height: 15, rx: 3.75, fill: '#F5F0E6', stroke: '#E8B88F', strokeWidth: 1.5 })),
+      h('circle', { cx: 32, cy: 33, r: 21.5, fill: '#F5F0E6', stroke: '#E8B88F', strokeWidth: 2 }),
+      h('ellipse', { cx: 25.5, cy: 23, rx: 9, ry: 5.5, fill: '#FFFFFF', opacity: 0.6, transform: 'rotate(-18 25.5 23)' }),
+      h('ellipse', { cx: 32, cy: 47, rx: 12, ry: 5, fill: '#E9D9CE', opacity: 0.32 }),
       closedEyes
         ? h('path', { d: 'M24 33c1.4-1.2 3.6-1.2 5 0M35 33c1.4-1.2 3.6-1.2 5 0', stroke: '#354B43', strokeWidth: 2, strokeLinecap: 'round', fill: 'none' })
         : h('g', null,
           h('circle', { cx: 26, cy: 32, r: eyeRadius, fill: '#354B43' }),
           h('circle', { cx: 38, cy: 32, r: eyeRadius, fill: '#354B43' })),
       h('path', { d: mouth, stroke: '#354B43', strokeWidth: mood === 'celebrate' ? 2.4 : 2.2, strokeLinecap: 'round', fill: 'none' }),
-      h('circle', { cx: 20, cy: 38, r: 3, fill: '#E9D9CE' }),
-      h('circle', { cx: 44, cy: 38, r: 3, fill: '#E9D9CE' }))
+      h('circle', { cx: 20.5, cy: 38, r: 3, fill: '#E9D9CE' }),
+      h('circle', { cx: 43.5, cy: 38, r: 3, fill: '#E9D9CE' }),
+      h('g', { className: 'lo-cup' },
+        h('rect', { x: 44, y: 33.5, width: 10, height: 9.5, rx: 2.4, fill: '#F5F0E6', stroke: '#354B43', strokeWidth: 1.5 }),
+        h('path', { d: 'M54 35.6c3.2 0 3.2 5.2 0 5.2', fill: 'none', stroke: '#354B43', strokeWidth: 1.5, strokeLinecap: 'round' }),
+        h('path', { d: 'M47 30.5c-1-2 1-3 0-4.6M50 30.5c-1-2 1-3 0-4.6', fill: 'none', stroke: '#E8B88F', strokeWidth: 1.3, strokeLinecap: 'round' })))
     }
-
 
     /* ------------------------------------------------------------------ *
      * 8. Home
@@ -1837,6 +1890,8 @@ window.__ModuleLoader__.load({
       { id: 'pat', label: 'petPat', xp: 5, line: 'petPatLine', mood: 'happy' },
       { id: 'feed', label: 'petFeed', xp: 8, line: 'petFeedLine', mood: 'cozy' },
       { id: 'play', label: 'petPlay', xp: 10, line: 'petPlayLine', mood: 'celebrate' },
+      { id: 'coffee', label: 'petCoffee', xp: 6, line: 'petCoffeeLine', mood: 'happy' },
+      { id: 'soothe', label: 'petSoothe', xp: 4, line: 'petSootheLine', mood: 'cozy' },
     ]
 
     function FunView({ state, now, weather }) {
@@ -1853,9 +1908,11 @@ window.__ModuleLoader__.load({
         const before = petLevel(state.pet.xp)
         const nextXp = state.pet.xp + action.xp
         const after = petLevel(nextXp)
-        patch({ pet: { xp: nextXp, lastPet: today } })
+        const todayActions = petActionsFor(state, now)
+        const nextActions = Object.assign({}, todayActions, { [action.id]: (todayActions[action.id] || 0) + 1 })
+        patch({ pet: { xp: nextXp, lastPet: today, actions: nextActions } })
         const text = after > before ? t('petLevelUp', { n: after }) : t(action.line)
-        setReaction({ mood: after > before ? 'celebrate' : action.mood, text, xp: action.xp, key: bump + 1 })
+        setReaction({ mood: after > before ? 'celebrate' : action.mood, text, xp: action.xp, action: action.id, key: bump + 1 })
         setBump(bump + 1)
         window.setTimeout(() => setReaction(null), 2000)
       }
@@ -1892,8 +1949,8 @@ window.__ModuleLoader__.load({
           },
           h('span', {
             key: reaction ? reaction.key : 'idle',
-            className: 'lo-pet-art' + (reaction ? ' lo-pet-bounce' : ''),
-          }, h(Mascot, { size: 96, mood: reaction ? reaction.mood : petMood(now) })),
+            className: 'lo-pet-art',
+          }, h(Mascot, { size: 96, mood: reaction ? reaction.mood : petMood(now), action: reaction ? reaction.action : '' })),
           reaction ? h('span', { className: 'lo-pet-xp', key: 'xp-' + reaction.key }, '+' + reaction.xp) : null),
           h('div', { className: 'lo-pet-body' },
             h('p', { className: 'lo-pet-name' }, t('petTitle')),
@@ -1905,7 +1962,8 @@ window.__ModuleLoader__.load({
               type: 'button',
               className: 'lo-pet-action',
               onClick: () => interact(action),
-            }, t(action.label)))))),
+            }, t(action.label)))),
+            h('p', { className: 'lo-hint' }, t('petBonus', interactionBonus(state, now))))),
         h(Card, { title: t('achievements'), action: h('span', { className: 'lo-count' }, Object.keys(state.achievements).length + ' / ' + ACHIEVEMENTS.length) },
           h('div', { className: 'lo-achievements' }, ACHIEVEMENTS.map((item) => {
             const unlockedAt = state.achievements[item.id]
@@ -2145,7 +2203,7 @@ window.__ModuleLoader__.load({
           notice ? h('p', { className: 'lo-hint', 'aria-live': 'polite' }, notice) : null),
         h(Card, { title: t('about') },
           h('p', { className: 'lo-hint' }, 'DAYS — Days Are Yours · ' + t('slogan')),
-          h('p', { className: 'lo-hint' }, t('version') + ' 1.4.0 · MIT License')))
+          h('p', { className: 'lo-hint' }, t('version') + ' 1.5.0 · MIT License')))
     }
 
     /* ------------------------------------------------------------------ *
@@ -2448,12 +2506,43 @@ window.__ModuleLoader__.load({
 .lo-pet-hit:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:4px}
 .lo-pet-art{display:block;transition:transform .18s ease}
 .lo-pet-hit:hover .lo-pet-art{transform:translateY(-2px) scale(1.04)}
-.lo-pet-bounce{animation:lo-pet-pop .62s cubic-bezier(.34,1.56,.64,1)}
-@keyframes lo-pet-pop{0%{transform:scale(1)}30%{transform:scale(1.14) rotate(-4deg)}60%{transform:scale(.95) rotate(3deg)}100%{transform:scale(1) rotate(0)}}
+.lo-mascot{filter:drop-shadow(0 6px 10px rgba(16,24,40,.12))}
+.lo-arm{opacity:0;transform-box:fill-box;transform-origin:50% 6%}
+.lo-cup{opacity:0;transform-box:fill-box;transform-origin:50% 50%}
+.lo-mascot[data-action] .lo-arm{opacity:1}
+.lo-mascot[data-action="coffee"] .lo-cup{opacity:1}
+.lo-mascot[data-action="pat"]{animation:lo-body-sway .8s ease}
+.lo-mascot[data-action="pat"] .lo-arm-right{animation:lo-arm-wave .8s ease}
+.lo-mascot[data-action="feed"]{animation:lo-body-chew .8s ease}
+.lo-mascot[data-action="feed"] .lo-arm-left,.lo-mascot[data-action="feed"] .lo-arm-right{animation:lo-arm-reach .8s ease}
+.lo-mascot[data-action="play"]{animation:lo-body-hop .8s ease}
+.lo-mascot[data-action="play"] .lo-arm-left{animation:lo-arm-up-left .8s ease}
+.lo-mascot[data-action="play"] .lo-arm-right{animation:lo-arm-up-right .8s ease}
+.lo-mascot[data-action="coffee"]{animation:lo-body-sip .9s ease}
+.lo-mascot[data-action="coffee"] .lo-arm-right{animation:lo-arm-reach .9s ease}
+.lo-mascot[data-action="coffee"] .lo-cup{animation:lo-cup-in .9s ease}
+.lo-mascot[data-action="soothe"]{animation:lo-body-calm .9s ease}
+.lo-mascot[data-action="soothe"] .lo-arm-left{animation:lo-arm-hug-left .9s ease}
+.lo-mascot[data-action="soothe"] .lo-arm-right{animation:lo-arm-hug-right .9s ease}
+@keyframes lo-body-sway{0%,100%{transform:rotate(0)}30%{transform:rotate(-3deg)}65%{transform:rotate(2deg)}}
+@keyframes lo-body-chew{0%,100%{transform:scale(1)}35%{transform:scale(1.05,.95)}70%{transform:scale(.98,1.02)}}
+@keyframes lo-body-hop{0%,100%{transform:translateY(0)}35%{transform:translateY(-5px)}60%{transform:translateY(1px)}}
+@keyframes lo-body-sip{0%,100%{transform:rotate(0)}50%{transform:rotate(2.5deg) translateY(-1px)}}
+@keyframes lo-body-calm{0%,100%{transform:scale(1)}50%{transform:scale(.96)}}
+@keyframes lo-arm-wave{0%{opacity:0;transform:translateY(6px) rotate(0)}30%{opacity:1;transform:translateY(-2px) rotate(-18deg)}60%{transform:rotate(12deg)}100%{opacity:1;transform:rotate(0)}}
+@keyframes lo-arm-reach{0%{opacity:0;transform:translateY(8px) scaleY(.6)}45%{opacity:1;transform:translateY(-3px) scaleY(1.1)}100%{opacity:1;transform:translateY(0) scaleY(1)}}
+@keyframes lo-arm-up-left{0%{opacity:0;transform:rotate(0)}55%{opacity:1;transform:rotate(-42deg)}100%{opacity:1;transform:rotate(-18deg)}}
+@keyframes lo-arm-up-right{0%{opacity:0;transform:rotate(0)}55%{opacity:1;transform:rotate(42deg)}100%{opacity:1;transform:rotate(18deg)}}
+@keyframes lo-arm-hug-left{0%{opacity:0;transform:translateX(-4px) rotate(0)}100%{opacity:1;transform:translateX(4px) rotate(-16deg)}}
+@keyframes lo-arm-hug-right{0%{opacity:0;transform:translateX(4px) rotate(0)}100%{opacity:1;transform:translateX(-4px) rotate(16deg)}}
+@keyframes lo-cup-in{0%{opacity:0;transform:translateY(5px) scale(.9)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes lo-pet-float{0%{opacity:0;transform:translate(-50%,6px)}20%{opacity:1}100%{opacity:0;transform:translate(-50%,-16px)}}
 .lo-pet-xp{position:absolute;left:50%;top:-2px;transform:translateX(-50%);font-size:12px;font-weight:600;color:var(--lo-forest);pointer-events:none;animation:lo-pet-float .9s ease-out forwards}
 @keyframes lo-pet-float{0%{opacity:0;transform:translate(-50%,6px)}20%{opacity:1}100%{opacity:0;transform:translate(-50%,-16px)}}
 .lo-pet-message-active{color:var(--dsw-alias-label-primary)}
-@media (prefers-reduced-motion: reduce){.lo-pet-bounce,.lo-pet-xp{animation:none}}
+@media (prefers-reduced-motion: reduce){
+.lo-mascot,.lo-mascot .lo-arm,.lo-mascot .lo-cup,.lo-pet-xp{animation:none !important}
+}
 .lo-pet-body{flex:1;min-width:0}
 .lo-pet-name{margin:0;font-size:15px;font-weight:600}
 .lo-pet-level{margin:2px 0 0;font-size:12px;color:var(--dsw-alias-label-secondary)}
@@ -2536,7 +2625,8 @@ window.__ModuleLoader__.load({
         breakdown, monthDay, retirementInfo, delayMonthsFor, addMonths, RETIRE_RULES,
         STORE_KEY, loadState, buildExport, parseImport, holidayPeriods, HOLIDAY_DATA, dayInfo, isRestDay, nextOccurrence,
         customCountdowns, lifeEntries, leaveDays, leaveWorkDays, leaveStats, dayMarks, planLeave,
-        weatherKind, weatherLabel, isWeatherFresh, sameLocation, funScores, dailyQuote, QUOTES, workStatus, nextPayday,
+        weatherKind, weatherLabel, isWeatherFresh, sameLocation, funScores, dailyQuote, QUOTES,
+        petActionsFor, interactionBonus, workStatus, nextPayday,
         petLevel, petMood, monthGrid, ACHIEVEMENTS, withAchievements, hashString,
       },
       apply(ctx) {
