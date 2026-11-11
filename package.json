@@ -20,7 +20,8 @@
     "locale/*.json",
     "icon.svg",
     "docs",
-    "assets"
+    "assets",
+    "tests"
   ],
   "dsh": {
     "bundle": { "patch": "./cordis.patch.yml" },

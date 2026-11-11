@@ -141,6 +141,95 @@ check('sanitize filters countdowns', cleaned.countdowns.length, 1)
 const unlocked = api.withAchievements(Object.assign(api.defaultState(), { countdowns: [{ id: '1', name: 'x', date: '2026-12-01' }] }))
 check('achievement unlocks', !!unlocked.achievements.countdown, true)
 
+
+/* --- RC: import / export round-trip -------------------------------- */
+const exported = api.buildExport(state)
+check('export envelope app', exported.app, 'LifeOS')
+check('export envelope schema', exported.schema, 1)
+const roundTrip = api.parseImport(JSON.stringify(exported))
+check('round-trip leaves', roundTrip.leaves.length, state.leaves.length)
+check('round-trip quota', roundTrip.profile.leaveQuota, state.profile.leaveQuota)
+check('round-trip dates', roundTrip.leaves[0].start, state.leaves[0].start)
+check('round-trip is sanitized', JSON.stringify(api.sanitize(roundTrip)), JSON.stringify(roundTrip))
+let rejectedApp = false
+try { api.parseImport(JSON.stringify({ app: 'Other', schema: 1, data: state })) } catch (error) { rejectedApp = true }
+check('import rejects foreign app', rejectedApp, true)
+let rejectedVersion = false
+try { api.parseImport(JSON.stringify({ app: 'LifeOS', schema: 1, data: Object.assign({}, state, { v: 99 }) })) } catch (error) { rejectedVersion = true }
+check('import rejects other schema', rejectedVersion, true)
+let rejectedJson = false
+try { api.parseImport('{ broken') } catch (error) { rejectedJson = true }
+check('import rejects malformed json', rejectedJson, true)
+
+/* --- RC: retirement boundaries ------------------------------------- */
+check('male born 1964-12-31 retires at 60', api.toISO(retire('1964-12-31', 'male').date), '2024-12-31')
+check('male born 1965-04-30 retires at 60y1m', api.toISO(retire('1965-04-30', 'male').date), '2025-05-30')
+check('male born 1976-08-31 → 62y11m', retire('1976-08-31', 'male').effectiveMonths, 755)
+check('male born 1976-09-01 → 63y', retire('1976-09-01', 'male').effectiveMonths, 756)
+check('female50 1984-10 → 54y11m', retire('1984-10-15', 'female50').effectiveMonths, 659)
+check('female50 1984-11 → 55y', retire('1984-11-15', 'female50').effectiveMonths, 660)
+check('leap-day birth clamps in non-leap retirement year', api.toISO(retire('2000-02-29', 'male').date), '2063-02-28')
+check('leap-day birth keeps 63 years', retire('2000-02-29', 'male').effectiveMonths, 756)
+check('manual mode with birth set uses manual', api.toISO(api.retirementInfo({ retireMode: 'manual', retireDate: '2049-01-01', birthDate: '1990-01-01', sex: 'male' }).date), '2049-01-01')
+
+/* --- RC: holiday boundaries and active period ---------------------- */
+check('make-up day before spring festival', api.dayInfo(new Date(2025, 0, 26)).type, 'makeup')
+check('day before spring festival is work', api.dayInfo(new Date(2025, 0, 27)).type, 'work')
+check('spring festival first day', api.dayInfo(new Date(2025, 0, 28)).type, 'holiday')
+check('spring festival last day', api.dayInfo(new Date(2025, 1, 4)).type, 'holiday')
+check('day after spring festival is work', api.dayInfo(new Date(2025, 1, 5)).type, 'work')
+check('2026 national day make-up', api.dayInfo(new Date(2026, 9, 10)).type, 'makeup')
+check('2026 national day +1 is weekend', api.dayInfo(new Date(2026, 9, 11)).type, 'weekend')
+check('2027 spring eve is work', api.dayInfo(new Date(2027, 1, 4)).type, 'work')
+const activePeriod = api.holidayPeriods(new Date(2026, 9, 3))[0]
+check('active period flagged', activePeriod.active, true)
+check('active period remaining days', activePeriod.remaining, 4)
+check('cross-year diff 2026-12-31 → 2027-01-01', api.diffDays(new Date(2026, 11, 31), new Date(2027, 0, 1)), 1)
+
+/* --- RC: planner independence -------------------------------------- */
+const allWork = api.planLeave(api.sanitize({}), { budget: 3, from: '2026-11-09', to: '2026-11-13', sort: 'longest' })
+check('planner skips pure work week', allWork.length, 0)
+const allRest = api.planLeave(api.sanitize({}), { budget: 3, from: '2026-10-01', to: '2026-10-07', sort: 'longest' })
+check('planner skips all-rest window', allRest.length, 0)
+const wide = api.planLeave(api.sanitize({}), { budget: 5, from: '2026-09-20', to: '2026-10-15', sort: 'longest' })
+check('planner respects budget', wide.every((plan) => plan.cost <= 5), true)
+check('planner leave dates are workdays', wide.every((plan) => plan.leaveDates.every((date) => !api.isRestDay(date))), true)
+check('planner spans are contiguous', wide.every((plan) => api.diffDays(plan.first, plan.last) + 1 === plan.continuous), true)
+check('planner block = leave + rest', wide.every((plan) => {
+  const leave = new Set(plan.leaveDates.map((date) => api.toISO(date)))
+  let rest = 0
+  for (let cursor = plan.first; api.diffDays(cursor, plan.last) >= 0; cursor = api.addDays(cursor, 1)) {
+    if (!leave.has(api.toISO(cursor))) {
+      if (!api.isRestDay(cursor)) return false
+      rest += 1
+    }
+  }
+  return rest + plan.cost === plan.continuous
+}), true)
+const invalidWindow = api.planLeave(api.sanitize({}), { budget: 3, from: '2026-10-10', to: '2026-10-01', sort: 'longest' })
+check('planner rejects inverted window', invalidWindow.length, 0)
+const byValue = api.planLeave(api.sanitize({}), { budget: 3, from: '2026-09-20', to: '2026-10-15', sort: 'value' })
+check('value sort by ratio', byValue[0].ratio >= byValue[byValue.length - 1].ratio, true)
+
+/* --- RC: leave consistency and payday guards ----------------------- */
+const consistency = api.sanitize(api.defaultState())
+consistency.profile.leaveQuota = 5
+consistency.leaves = [{ id: 'l1', type: 'annual', name: '年假', start: '2026-12-28', end: '2027-01-02', countsAsLeave: true }]
+check('cross-year leave counted in start year', api.leaveStats(consistency, 2026).used, 6)
+check('cross-year leave not double counted', api.leaveStats(consistency, 2027).used, 0)
+consistency.leaves.push({ id: 'l2', type: 'sick', name: '病假', start: '2026-06-01', end: '2026-06-01', countsAsLeave: false })
+check('non-annual leave ignored', api.leaveStats(consistency, 2026).used, 6)
+check('payday clamps day 99 to 28', api.toISO(api.nextPayday({ salaryDay: 99 }, today)), '2026-11-28')
+check('payday empty is null', api.nextPayday({ salaryDay: '' }, today), null)
+
+/* --- RC: custom countdowns in the past ----------------------------- */
+check('past one-off countdown keeps its date', api.toISO(api.nextOccurrence('2020-01-01', false, today)), '2020-01-01')
+check('past yearly countdown rolls forward', api.toISO(api.nextOccurrence('2020-03-01', true, today)), '2027-03-01')
+check('yearly 29 Feb skips to leap year', api.toISO(api.nextOccurrence('2028-02-29', true, today)), '2028-02-29')
+
+/* --- RC: sanitize is idempotent ------------------------------------ */
+check('sanitize idempotent', JSON.stringify(api.sanitize(api.sanitize(roundTrip))), JSON.stringify(api.sanitize(roundTrip)))
+
 if (failures.length) {
   console.error(`\n${failures.length} failure(s):`)
   for (const failure of failures) console.error(' - ' + failure)

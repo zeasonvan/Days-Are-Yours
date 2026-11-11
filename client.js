@@ -179,6 +179,13 @@ window.__ModuleLoader__.load({
       errImport: '文件格式不正确|Unsupported file',
       confirmReset: '将清空这台设备上的 LifeOS 数据，确定吗？|This clears LifeOS data on this device. Continue?',
       muted: '已过期|Past',
+      passed: '已过 {n} 天|{n} days ago',
+      confirmImport: '导入会替换当前全部 LifeOS 数据，先导出备份了吗？继续？|Importing replaces all LifeOS data on this device. Continue?',
+      retireDateManual: '指定退休日期|Retirement date (manual)',
+      noYearData: '这一年的放假安排还没有收录|No holiday data for this year yet',
+      dataNotice: '2025–2027 数据来自国务院公告的放假安排；最新年份请以官方最终安排为准。|2025–2027 data mirrors State Council notices; the newest year may still change.',
+      weekend: '周末|Weekend',
+      makeupShort: '班|W',
     }
 
     function t(key, params) {
@@ -569,6 +576,17 @@ window.__ModuleLoader__.load({
       return () => { listeners.delete(listener) }
     }
 
+    // Keep tabs in sync instead of silently overwriting each other.
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('storage', (event) => {
+        if (event.key !== STORE_KEY || !event.newValue) return
+        try {
+          currentState = sanitize(JSON.parse(event.newValue))
+          for (const listener of Array.from(listeners)) listener()
+        } catch (error) { /* ignore a payload written by another version */ }
+      })
+    }
+
     function useLifeOS() {
       const [, bump] = useState(0)
       useEffect(() => subscribe(() => bump((value) => value + 1)), [])
@@ -581,8 +599,18 @@ window.__ModuleLoader__.load({
     const patchSettings = (partial) => patch({ settings: Object.assign({}, currentState.settings, partial) })
     const bumpStat = (key) => patch({ stats: Object.assign({}, currentState.stats, { [key]: currentState.stats[key] + 1 }) })
 
+    function buildExport(state) {
+      return { app: 'LifeOS', schema: SCHEMA, exportedAt: new Date().toISOString(), data: state }
+    }
+
+    function parseImport(text) {
+      const parsed = JSON.parse(text)
+      if (!parsed || parsed.app !== 'LifeOS' || !parsed.data || parsed.data.v !== SCHEMA) throw new Error('bad-file')
+      return sanitize(parsed.data)
+    }
+
     function exportData() {
-      const payload = { app: 'LifeOS', schema: SCHEMA, exportedAt: new Date().toISOString(), data: currentState }
+      const payload = buildExport(currentState)
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
@@ -594,9 +622,7 @@ window.__ModuleLoader__.load({
     }
 
     function importData(text) {
-      const parsed = JSON.parse(text)
-      if (!parsed || parsed.app !== 'LifeOS' || !parsed.data || parsed.data.v !== SCHEMA) throw new Error('bad-file')
-      commit(sanitize(parsed.data))
+      commit(parseImport(text))
     }
 
     function resetData() {
@@ -754,8 +780,10 @@ window.__ModuleLoader__.load({
     }
 
     function nextPayday(profile, now) {
-      const day = profile.salaryDay
-      if (!day) return null
+      if (profile.salaryDay === '' || profile.salaryDay == null) return null
+      const parsed = Number(profile.salaryDay)
+      if (!Number.isFinite(parsed) || parsed < 1) return null
+      const day = Math.min(28, Math.floor(parsed))
       const today = startOfDay(now)
       let candidate = new Date(today.getFullYear(), today.getMonth(), day)
       if (diffDays(today, candidate) < 0) candidate = new Date(today.getFullYear(), today.getMonth() + 1, day)
@@ -1005,23 +1033,24 @@ window.__ModuleLoader__.load({
       const workText = work.state === 'working'
         ? (LANG === 'en' ? Math.floor(work.minutes / 60) + 'h ' + (work.minutes % 60) + 'm' : Math.floor(work.minutes / 60) + ' 小时 ' + (work.minutes % 60) + ' 分')
         : work.state === 'before'
-          ? LANG === 'en' ? 'in ' + work.minutes + 'm' : '还有 ' + work.minutes + ' 分钟'
+          ? (LANG === 'en' ? 'in ' + work.minutes + 'm' : '还有 ' + work.minutes + ' 分钟')
           : t('dayOff')
-      return h('div', { className: 'lo-quick' },
-        h('div', { className: 'lo-quick-item' },
-          h('span', { className: 'lo-quick-label' }, work.state === 'working' ? t('workUntil') : work.state === 'before' ? t('workStartIn') : t('dayOff')),
-          h('span', { className: 'lo-quick-value' }, workText)),
-        h('div', { className: 'lo-quick-item' },
-          h('span', { className: 'lo-quick-label' }, t('payday')),
-          h('span', { className: 'lo-quick-value' }, payday ? (LANG === 'en' ? Math.max(0, diffDays(startOfDay(now), payday)) + ' d' : Math.max(0, diffDays(startOfDay(now), payday)) + ' 天') : t('none'))),
-        h('div', { className: 'lo-quick-item' },
-          h('span', { className: 'lo-quick-label' }, t('leaveLeft')),
-          h('span', { className: 'lo-quick-value' }, leave.left + ' ' + t('days'))))
+      const leaveText = leave.left + ' ' + t('days')
+      return h('div', { className: 'lo-strip' },
+        h('div', { className: 'lo-strip-item' },
+          h('span', { className: 'lo-strip-label' }, work.state === 'working' ? t('workUntil') : work.state === 'before' ? t('workStartIn') : t('dayOff')),
+          h('span', { className: 'lo-strip-value' }, workText)),
+        h('div', { className: 'lo-strip-item' },
+          h('span', { className: 'lo-strip-label' }, t('payday')),
+          h('span', { className: 'lo-strip-value' }, payday ? (LANG === 'en' ? Math.max(0, diffDays(startOfDay(now), payday)) + ' d' : Math.max(0, diffDays(startOfDay(now), payday)) + ' 天') : t('none'))),
+        h('div', { className: 'lo-strip-item' },
+          h('span', { className: 'lo-strip-label' }, t('leaveLeft')),
+          h('span', { className: 'lo-strip-value' + (leave.left < 0 ? ' lo-negative' : '') }, leaveText)))
     }
 
     function DailyQuote({ fun }) {
       return h('section', { className: 'lo-quote' },
-        h(Mascot, { size: 44, mood: 'cozy' }),
+        h(Mascot, { size: 40, mood: 'cozy' }),
         h('div', { className: 'lo-quote-body' },
           h('p', { className: 'lo-quote-text' }, '“' + fun.quote + '”'),
           h('p', { className: 'lo-quote-label' }, t('quote'))))
@@ -1058,13 +1087,22 @@ window.__ModuleLoader__.load({
         : h('ul', { className: 'lo-list' }, state.countdowns
           .map((item) => ({ item, date: nextOccurrence(item.date, item.yearly, today) }))
           .filter((entry) => entry.date)
-          .sort((a, b) => diffDays(today, a.date) - diffDays(today, b.date))
-          .map(({ item, date: when }) => h('li', { key: item.id, className: 'lo-row' },
-            h('div', { className: 'lo-row-main' },
-              h('span', { className: 'lo-row-name' }, item.name, item.yearly ? h('em', { className: 'lo-chip' }, LANG === 'en' ? 'yearly' : '每年') : null),
-              h('span', { className: 'lo-row-meta' }, formatDate(when))),
-            h('span', { className: 'lo-row-days' }, formatInt(diffDays(today, when)), h('em', null, t('days'))),
-            h('button', { type: 'button', className: 'lo-link lo-danger', onClick: () => patch({ countdowns: state.countdowns.filter((entry) => entry.id !== item.id) }) }, t('delete'))))))
+          .sort((a, b) => {
+            const da = diffDays(today, a.date)
+            const db = diffDays(today, b.date)
+            if ((da < 0) !== (db < 0)) return da < 0 ? 1 : -1
+            return da - db
+          })
+          .map(({ item, date: when }) => {
+            const days = diffDays(today, when)
+            return h('li', { key: item.id, className: 'lo-row' },
+              h('div', { className: 'lo-row-main' },
+                h('span', { className: 'lo-row-name' }, item.name, item.yearly ? h('em', { className: 'lo-chip' }, LANG === 'en' ? 'yearly' : '每年') : null),
+                h('span', { className: 'lo-row-meta' }, formatDate(when))),
+              h('span', { className: 'lo-row-days' + (days < 0 ? ' lo-muted' : '') },
+                days < 0 ? t('passed', { n: formatInt(days) }) : [formatInt(days), h('em', { key: 'u' }, t('days'))]),
+              h('button', { type: 'button', className: 'lo-link lo-danger', onClick: () => patch({ countdowns: state.countdowns.filter((entry) => entry.id !== item.id) }) }, t('delete')))
+          })))
     }
 
     function HomeView({ state, now, onTab }) {
@@ -1120,15 +1158,17 @@ window.__ModuleLoader__.load({
         weeks.map((week, weekIndex) => h('div', { key: weekIndex, className: 'lo-week' }, week.map((cell) => {
           const isSelected = selected && toISO(cell.date) === toISO(selected)
           const isToday = toISO(cell.date) === toISO(new Date())
+          const label = formatDate(cell.date) + (cell.info.name ? ' · ' + cell.info.name : '') + (cell.leaves.length ? ' · ' + cell.leaves.map((leave) => leave.name).join('、') : '')
           return h('button', {
             key: toISO(cell.date),
             type: 'button',
-            className: cx('lo-day', cell.outside && 'lo-day-outside', isToday && 'lo-day-today', isSelected && 'lo-day-selected', cell.info.type === 'holiday' && 'lo-day-holiday'),
+            'aria-label': label,
+            className: cx('lo-day', cell.outside && 'lo-day-outside', cell.info.type === 'weekend' && 'lo-day-weekend', isToday && 'lo-day-today', isSelected && 'lo-day-selected', cell.info.type === 'holiday' && 'lo-day-holiday', cell.info.type === 'makeup' && 'lo-day-makeup'),
             onClick: () => onSelect(startOfDay(cell.date)),
           },
           h('span', { className: 'lo-day-num' }, cell.date.getDate()),
           cell.info.type === 'holiday' ? h('span', { className: 'lo-day-mark' }) : null,
-          cell.info.type === 'makeup' ? h('span', { className: 'lo-day-mark lo-day-mark-work' }) : null,
+          cell.info.type === 'makeup' ? h('span', { className: 'lo-day-work-badge' }, t('makeupShort')) : null,
           cell.leaves.length ? h('span', { className: 'lo-day-mark lo-day-mark-leave' }) : null)
         }))))
     }
@@ -1234,7 +1274,9 @@ window.__ModuleLoader__.load({
 
     function YearHolidays({ year, rows }) {
       if (!rows || !rows.length) {
-        return h(Card, { title: t('allHolidays') }, h('p', { className: 'lo-empty' }, t('empty')))
+        return h(Card, { title: year + ' · ' + t('allHolidays') },
+          h('p', { className: 'lo-empty' }, t('noYearData')),
+          h('p', { className: 'lo-hint' }, t('dataNotice')))
       }
       return h(Card, { title: year + ' · ' + t('allHolidays') },
         h('ul', { className: 'lo-list' }, rows.map((row, index) => {
@@ -1247,7 +1289,8 @@ window.__ModuleLoader__.load({
               h('span', { className: 'lo-row-meta' }, t('holidayRange', { start: monthDay(start), end: monthDay(end) })
                 + (row[3].length ? ' · ' + t('makeupDays', { dates: row[3].map((day) => monthDay(parseISO(day))).join('、') }) : ''))),
             h('span', { className: 'lo-row-days' }, span, h('em', null, t('days'))))
-        })))
+        })),
+        h('p', { className: 'lo-hint' }, t('dataNotice')))
     }
 
     function Planner({ state, now }) {
@@ -1310,9 +1353,12 @@ window.__ModuleLoader__.load({
       const level = petLevel(state.pet.xp)
       const into = state.pet.xp % 50
       const today = toISO(startOfDay(now))
+      const [petted, setPetted] = useState(false)
 
       const petTheBlob = () => {
         patch({ pet: { xp: state.pet.xp + 5, lastPet: today } })
+        setPetted(true)
+        window.setTimeout(() => setPetted(false), 1600)
       }
 
       const workValue = work.state === 'working'
@@ -1338,7 +1384,7 @@ window.__ModuleLoader__.load({
             h(Meter, { label: t('moodIndex'), value: 50 + (fun.slack % 50) })),
           h('p', { className: 'lo-hint' }, t('forFun'))),
         h('section', { className: 'lo-pet' },
-          h('div', { className: 'lo-pet-art' }, h(Mascot, { size: 96, mood: petMood(now) })),
+          h('div', { className: 'lo-pet-art' }, h(Mascot, { size: 96, mood: petted ? 'celebrate' : petMood(now) })),
           h('div', { className: 'lo-pet-body' },
             h('p', { className: 'lo-pet-name' }, t('petTitle')),
             h('p', { className: 'lo-pet-level' }, t('petLevel', { n: level }) + ' · ' + t('petXp', { n: state.pet.xp })),
@@ -1397,8 +1443,11 @@ window.__ModuleLoader__.load({
         const file = event.target.files && event.target.files[0]
         if (!file) return
         try {
-          importData(await file.text())
-          setImportError('')
+          const next = parseImport(await file.text())
+          if (window.confirm(t('confirmImport'))) {
+            commit(next)
+            setImportError('')
+          }
         } catch (error) {
           setImportError(t('errImport'))
         }
@@ -1426,7 +1475,7 @@ window.__ModuleLoader__.load({
               options: [{ value: 'auto', label: t('retireAuto') }, { value: 'manual', label: t('retireManual') }],
             })),
             state.profile.retireMode === 'manual'
-              ? h(Field, { label: t('retireDate') }, h(DateField, { value: state.profile.retireDate, onChange: (value) => patchProfile({ retireDate: value }) }))
+              ? h(Field, { label: t('retireDateManual') }, h(DateField, { value: state.profile.retireDate, onChange: (value) => patchProfile({ retireDate: value }) }))
               : null,
             state.profile.retireMode === 'auto'
               ? h(Field, { label: t('flex') }, h(Select, {
@@ -1453,9 +1502,9 @@ window.__ModuleLoader__.load({
           h('div', { className: 'lo-form' },
             h(Field, { label: t('workStart') }, h(TextInput, { value: state.profile.workStart, onChange: (value) => patchProfile({ workStart: value }) })),
             h(Field, { label: t('workEnd') }, h(TextInput, { value: state.profile.workEnd, onChange: (value) => patchProfile({ workEnd: value }) })),
-            h(Field, { label: t('salaryDay') }, h(TextInput, { value: state.profile.salaryDay, onChange: (value) => patchProfile({ salaryDay: Number(value) || '' }) })),
-            h(Field, { label: t('leaveQuota') }, h(TextInput, { value: state.profile.leaveQuota, onChange: (value) => patchProfile({ leaveQuota: Number(value) || 0 }) })),
-            h(Field, { label: t('leaveCarry') }, h(TextInput, { value: state.profile.leaveCarry, onChange: (value) => patchProfile({ leaveCarry: Number(value) || 0 }) }))),
+            h(Field, { label: t('salaryDay') }, h(TextInput, { value: state.profile.salaryDay, onChange: (value) => patchProfile({ salaryDay: value.trim() === '' ? '' : Math.min(28, Math.max(1, Number(value) || 1)) }) })),
+            h(Field, { label: t('leaveQuota') }, h(TextInput, { value: state.profile.leaveQuota, onChange: (value) => patchProfile({ leaveQuota: Math.max(0, Number(value) || 0) }) })),
+            h(Field, { label: t('leaveCarry') }, h(TextInput, { value: state.profile.leaveCarry, onChange: (value) => patchProfile({ leaveCarry: Math.max(0, Number(value) || 0) }) }))),
           h('div', { className: 'lo-workdays' }, [1, 2, 3, 4, 5, 6, 7].map((day) => h('label', { key: day, className: 'lo-check' },
             h('input', {
               type: 'checkbox',
@@ -1650,15 +1699,17 @@ window.__ModuleLoader__.load({
 .lo-next-value{display:flex;align-items:baseline;gap:8px;margin:14px 0 0}
 .lo-next-num{font-size:clamp(40px,6vw,58px);line-height:.95;font-weight:600;letter-spacing:-.045em;font-variant-numeric:tabular-nums}
 .lo-next-unit{font-size:12.5px;color:var(--dsw-alias-label-secondary)}
-.lo-next-name{margin:8px 0 0;font-size:16px;font-weight:600}
+.lo-next-name{margin:8px 0 0;font-size:16px;font-weight:600;overflow-wrap:anywhere}
 .lo-next-meta{margin:auto 0 0;padding-top:16px;font-size:12.5px;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}
-.lo-next-active{margin:5px 0 0;font-size:12px;color:var(--lo-forest)}
+.lo-next-active{margin:5px 0 0;font-size:12px;color:var(--dsw-alias-brand-primary)}
 .lo-next-work{margin:4px 0 0;font-size:12px;color:var(--dsw-alias-label-secondary)}
-.lo-quick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.lo-quick-item{display:flex;flex-direction:column;gap:3px;padding:14px 16px;border:1px solid var(--dsw-alias-border-l1);border-radius:14px;background:var(--dsw-alias-bg-base)}
-.lo-quick-label{font-size:11.5px;color:var(--dsw-alias-label-secondary)}
-.lo-quick-value{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
-.lo-quote{display:flex;align-items:center;gap:14px;padding:16px 20px;border:1px dashed var(--dsw-alias-border-l2);border-radius:16px}
+.lo-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--dsw-alias-border-l1);border-radius:16px;background:var(--dsw-alias-bg-base);overflow:hidden}
+.lo-strip-item{display:flex;flex-direction:column;gap:3px;padding:13px 16px;min-width:0}
+.lo-strip-item + .lo-strip-item{border-left:1px solid var(--dsw-alias-border-l1)}
+.lo-strip-label{font-size:11px;color:var(--dsw-alias-label-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lo-strip-value{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+.lo-negative{color:var(--dsw-alias-state-error-primary)}
+.lo-quote{display:flex;align-items:center;gap:14px;padding:8px 2px}
 .lo-quote-body{min-width:0}
 .lo-quote-text{margin:0;font-size:13.5px}
 .lo-quote-label{margin:3px 0 0;font-size:11px;color:var(--dsw-alias-label-secondary)}
@@ -1678,7 +1729,7 @@ window.__ModuleLoader__.load({
 .lo-textarea{height:auto;min-height:92px;padding:9px 10px;resize:vertical;line-height:1.6}
 .lo-check{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--dsw-alias-label-secondary);cursor:pointer;user-select:none}
 .lo-check input{margin:0;accent-color:var(--dsw-alias-brand-primary)}
-.lo-btn{height:32px;padding:0 13px;border-radius:8px;border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:12.5px;cursor:pointer;white-space:nowrap}
+.lo-btn{min-height:34px;padding:0 13px;border-radius:8px;border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:12.5px;cursor:pointer;white-space:nowrap}
 .lo-btn:hover{background:var(--dsw-alias-bg-layer-2)}
 .lo-btn-primary{background:var(--dsw-alias-brand-primary);border-color:transparent;color:#fff}
 .lo-btn-primary:hover{opacity:.92;background:var(--dsw-alias-brand-primary)}
@@ -1688,7 +1739,7 @@ window.__ModuleLoader__.load({
 .lo-row{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--dsw-alias-border-l1)}
 .lo-row:last-child{border-bottom:0;padding-bottom:2px}
 .lo-row-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
-.lo-row-name{display:flex;align-items:center;gap:7px;font-size:13.5px}
+.lo-row-name{display:flex;align-items:center;gap:7px;font-size:13.5px;overflow-wrap:anywhere}
 .lo-row-meta{font-size:11.5px;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}
 .lo-row-days{font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--dsw-alias-label-primary)}
 .lo-row-days em{font-style:normal;margin-left:3px;font-size:11px;color:var(--dsw-alias-label-secondary)}
@@ -1696,6 +1747,7 @@ window.__ModuleLoader__.load({
 .lo-link{border:0;background:none;padding:2px 0;font:inherit;font-size:12px;color:var(--dsw-alias-label-secondary);cursor:pointer}
 .lo-link:hover{color:var(--dsw-alias-label-primary)}
 .lo-danger:hover{color:var(--dsw-alias-state-error-primary)}
+.lo-muted{color:var(--dsw-alias-label-secondary)}
 .lo-empty{margin:6px 0 0;font-size:12.5px;color:var(--dsw-alias-label-secondary)}
 .lo-hint{margin:6px 0 0;font-size:12px;color:var(--dsw-alias-label-secondary)}
 .lo-error{margin:8px 0 0;font-size:12px;color:var(--dsw-alias-state-error-primary)}
@@ -1712,12 +1764,15 @@ window.__ModuleLoader__.load({
 .lo-day:hover{background:var(--dsw-alias-bg-layer-2)}
 .lo-day-num{font-size:13px;font-variant-numeric:tabular-nums}
 .lo-day-outside .lo-day-num{color:var(--dsw-alias-label-secondary);opacity:.55}
-.lo-day-holiday .lo-day-num{color:var(--lo-forest);font-weight:600}
+.lo-day-holiday .lo-day-num{font-weight:600}
+.lo-day-weekend .lo-day-num{color:var(--dsw-alias-label-secondary)}
+.lo-day-makeup .lo-day-num{text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
 .lo-day-today{border-color:var(--dsw-alias-border-l2)}
 .lo-day-selected{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-border-l2)}
 .lo-day-mark{width:4px;height:4px;border-radius:50%;background:var(--lo-peach)}
-.lo-day-mark-work{background:var(--dsw-alias-label-secondary)}
 .lo-day-mark-leave{background:var(--dsw-alias-brand-primary)}
+.lo-day-work-badge{font-size:9px;line-height:12px;padding:0 3px;border-radius:3px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary)}
+.lo-day:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}
 .lo-legend{display:flex;flex-wrap:wrap;gap:14px;font-size:11.5px;color:var(--dsw-alias-label-secondary)}
 .lo-legend span{display:inline-flex;align-items:center;gap:6px}
 .lo-dot{width:6px;height:6px;border-radius:50%;display:inline-block}
@@ -1765,13 +1820,13 @@ window.__ModuleLoader__.load({
 .lo-plan-dates{margin-top:2px;font-size:12px;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}
 .lo-plan-warn{margin-top:2px;font-size:11.5px;color:var(--dsw-alias-state-warn-primary)}
 .lo-nav{flex:none;display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:8px 10px 10px;border-top:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-base)}
-.lo-nav-item{display:flex;flex-direction:column;align-items:center;gap:4px;padding:7px 4px 5px;border:0;border-radius:11px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;cursor:pointer}
+.lo-nav-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:44px;padding:5px 4px;border:0;border-radius:11px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;cursor:pointer}
+.lo-nav-item:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}
 .lo-nav-item:hover{background:var(--dsw-alias-bg-layer-2)}
 .lo-nav-active{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2)}
 @media (max-width:820px){
 .lo-inner{padding:24px 18px 28px}
 .lo-hero-row{grid-template-columns:minmax(0,1fr)}
-.lo-quick{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 .lo-duo{grid-template-columns:minmax(0,1fr)}
 .lo-meters{grid-template-columns:minmax(0,1fr)}
 .lo-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -1807,7 +1862,7 @@ window.__ModuleLoader__.load({
       __internal: {
         defaultState, sanitize, migrateLegacy, parseISO, parseAnyDate, toISO, diffDays, addDays,
         breakdown, monthDay, retirementInfo, delayMonthsFor, addMonths, RETIRE_RULES,
-        HOLIDAY_DATA, dayInfo, isRestDay, holidayPeriods,
+        buildExport, parseImport, holidayPeriods, HOLIDAY_DATA, dayInfo, isRestDay, nextOccurrence,
         customCountdowns, lifeEntries, leaveDays, leaveStats, planLeave, workStatus, nextPayday,
         dailyFun, petLevel, petMood, monthGrid, ACHIEVEMENTS, withAchievements, hashString,
       },
