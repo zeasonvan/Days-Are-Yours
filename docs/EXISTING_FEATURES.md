@@ -1,6 +1,5 @@
 # Existing features (countdown v0.5 → DAYS v1.1)
 
-> 迁移清单写于项目名为 LifeOS 的时期；1.1.0 起项目名为 DAYS，功能与数据映射未变。
 
 | 旧功能 | 旧实现 | DAYS 迁移 |
 | --- | --- | --- |

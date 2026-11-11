@@ -1,6 +1,6 @@
 # Release checklist — v1.1.0 (DAYS)
 
-Date: 2026-11-11 · Bundle: `@local/days@1.5.3` · Installed: yes (`application: applied`); old `@local/lifeos` bundle removed, dangling link cleaned
+Date: 2026-11-11 · Bundle: `@local/days@1.5.4` · Installed: yes (`application: applied`); old bundle removed, dangling link cleaned
 
 ## Functional
 

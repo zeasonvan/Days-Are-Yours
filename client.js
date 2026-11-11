@@ -2,10 +2,9 @@
  * DAYS (Days Are Yours) client half — make every day count.
  *
  * One panel ("main" key = days) reached from the sidebar glyph, with four tabs:
- * Home, Calendar, Fun and Me. All state is local-first. The storage key keeps
- * its historical `lifeos/store` name so the 1.0 data of every user stays
- * readable after the rename; `countdown/store/v1` is migrated once and never
- * modified.
+ * Home, Calendar, Fun and Me. All state is local-first. The storage key is kept
+ * stable so existing browser data stays readable; `countdown/store/v1` is
+ * migrated once and never modified.
  *
  * Sections below: copy, dates, retirement policy, holiday data, store,
  * engines, views, styles, registration.
@@ -698,7 +697,7 @@ window.__ModuleLoader__.load({
 
     function parseImport(text) {
       const parsed = JSON.parse(text)
-      // 'LifeOS' is the 1.0 export envelope; keep accepting those files.
+      // Legacy 1.0 export identifier; keep accepting those files.
       if (!parsed || !IMPORT_APPS.includes(parsed.app) || !parsed.data || parsed.data.v !== SCHEMA) throw new Error('bad-file')
       return sanitize(parsed.data)
     }
@@ -2188,7 +2187,7 @@ window.__ModuleLoader__.load({
           notice ? h('p', { className: 'lo-hint', 'aria-live': 'polite' }, notice) : null),
         h(Card, { title: t('about') },
           h('p', { className: 'lo-hint' }, 'DAYS — Days Are Yours · ' + t('slogan')),
-          h('p', { className: 'lo-hint' }, t('version') + ' 1.5.3 · MIT License')))
+          h('p', { className: 'lo-hint' }, t('version') + ' 1.5.4 · MIT License')))
     }
 
     /* ------------------------------------------------------------------ *

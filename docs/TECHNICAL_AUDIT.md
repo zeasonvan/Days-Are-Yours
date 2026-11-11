@@ -1,7 +1,5 @@
 # Technical audit — countdown plugin (pre-DAYS)
 
-> 历史说明：本审计写于项目名为 **LifeOS** 的时期（2026-11-11）。项目在 1.1.0 更名 **DAYS（Days Are Yours）**，下文机构名与结论保持当时的真实记录。
-
 Date: 2026-11-11 · Target: `default-workspace/countdown` (backed up to `_archive/countdown-20261111-085156`)
 
 ## Snapshot

@@ -2,13 +2,15 @@
 
 **Make Every Day Count.**
 
+<p align="center">简体中文 · <a href="README_EN.md">English</a></p>
+
 ![Version](https://img.shields.io/github/v/tag/zeasonvan/Days-Are-Yours) ![License](https://img.shields.io/github/license/zeasonvan/Days-Are-Yours)
 
 ![DAYS](assets/banner.svg)
 
 DAYS（中文：每一天，都属于你）是一个运行在 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 里的个人生活时间助手：退休倒计时、法定假期、请假与拼假、月历、下班/发薪倒计时、每日小乐趣、愿望清单和时间胶囊，收在同一个侧边栏面板里。
 
-仓库名：**Days-Are-Yours** · 插件包：`@local/days` · 版本：1.5.3
+仓库名：**Days-Are-Yours** · 插件包：`@local/days`
 
 > 数据默认只保存在本机浏览器（`localStorage`），不上传服务器，不需要登录，也不需要 API Key。
 
@@ -34,8 +36,6 @@ plugin_manager install_bundle target=/absolute/path/to/days
 ```
 
 安装后刷新 Harness 窗口（⌘R），侧边栏出现 DAYS 图标，点击即可打开。
-
-> 品牌从 LifeOS 更名为 DAYS 时，**本地存储 key `lifeos/store` 故意保持不变**，升级不会丢数据；旧版导出的 JSON 也仍然可以导入。
 
 ## 无法使用 GitHub？
 

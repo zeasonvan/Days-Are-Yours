@@ -196,11 +196,11 @@ check('achievement unlocks', !!unlocked.achievements.countdown, true)
 /* --- RC: import / export round-trip -------------------------------- */
 const exported = api.buildExport(state)
 check('export envelope app', exported.app, 'DAYS')
-check('storage key stays lifeos/store', api.STORE_KEY, 'lifeos/store')
+check('storage key stays stable', api.STORE_KEY, 'lifeos/store')
 const seeded = api.defaultState()
 seeded.profile.name = 'Legacy'
 window.localStorage.setItem('lifeos/store', JSON.stringify(seeded))
-check('reads existing lifeos/store data after rename', api.loadState().profile.name, 'Legacy')
+check('reads existing browser data after rename', api.loadState().profile.name, 'Legacy')
 window.localStorage.removeItem('lifeos/store')
 const legacyEnvelope = api.parseImport(JSON.stringify({ app: 'DAYS', schema: 1, data: state }))
 check('legacy DAYS export still imports', legacyEnvelope.profile.leaveQuota, state.profile.leaveQuota)
