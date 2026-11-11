@@ -1924,7 +1924,7 @@ window.__ModuleLoader__.load({
       __internal: {
         defaultState, sanitize, migrateLegacy, parseISO, parseAnyDate, toISO, diffDays, addDays,
         breakdown, monthDay, retirementInfo, delayMonthsFor, addMonths, RETIRE_RULES,
-        STORE_KEY, buildExport, parseImport, holidayPeriods, HOLIDAY_DATA, dayInfo, isRestDay, nextOccurrence,
+        STORE_KEY, loadState, buildExport, parseImport, holidayPeriods, HOLIDAY_DATA, dayInfo, isRestDay, nextOccurrence,
         customCountdowns, lifeEntries, leaveDays, leaveWorkDays, leaveStats, planLeave, workStatus, nextPayday,
         dailyFun, petLevel, petMood, monthGrid, ACHIEVEMENTS, withAchievements, hashString,
       },
