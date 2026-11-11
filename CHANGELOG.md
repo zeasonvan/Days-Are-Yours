@@ -10,6 +10,7 @@
 - **本地存储 key `lifeos/store` 保持不变**，1.0 数据无需迁移。
 - 导出信封改为 `app: "DAYS"`，同时继续接受 `app: "LifeOS"` 的旧文件。
 - README、README_EN、docs、Issue/PR 模板、LICENSE 同步更名；历史事项保留「曾用名 LifeOS」说明。
+- 回归测试 108 条全部通过。
 
 ## 1.0.0-rc.1 — 2026-11-11
 
