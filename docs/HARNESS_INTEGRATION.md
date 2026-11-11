@@ -4,7 +4,7 @@
 
 ```json
 {
-  "name": "@local/lifeos",
+  "name": "@local/days",
   "type": "module",
   "exports": { ".": "./index.js", "./client": "./client.js", "./locale/*.json": "./locale/*.json", "./icon": "./icon.svg" },
   "dsh": {
@@ -14,17 +14,17 @@
 }
 ```
 
-`cordis.patch.yml` 只插入一行 `@local/lifeos`。
+`cordis.patch.yml` 只插入一行 `@local/days`。
 
 ## 客户端注册
 
 ```js
 ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
-  name: 'sidebar.panellist', id: 'lifeos', order: 40, label: () => 'LifeOS',
+  name: 'sidebar.panellist', id: 'days', order: 40, label: () => 'DAYS',
 }, PanelGlyph))
 
 ctx.slots.inject('main', () => ctx.slots.register({
-  name: 'main', key: 'lifeos',
+  name: 'main', key: 'days',
 }, Page))
 ```
 
@@ -38,8 +38,8 @@ ctx.slots.inject('main', () => ctx.slots.register({
 ## 兼容性与回退
 
 - 只依赖 Slot 形状与主题 token；token 改名只影响外观。
-- 旧 `@local/countdown` 可随时重新启用；两者 key 不同（`countdown` / `lifeos`），互不覆盖数据。
-- 若未来 Harness 调整 slot 名称，LifeOS 需同步修改注册段，业务逻辑不受影响。
+- 旧 `@local/countdown` 可随时重新启用；两者 key 不同（`countdown` / `days`），互不覆盖数据。
+- 若未来 Harness 调整 slot 名称，DAYS 需同步修改注册段，业务逻辑不受影响。
 
 ## 已知限制
 

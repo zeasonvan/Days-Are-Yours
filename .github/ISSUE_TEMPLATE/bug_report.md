@@ -16,7 +16,7 @@ about: Something behaves incorrectly
 
 - Harness version / profile:
 - OS:
-- LifeOS version:
+- DAYS version:
 - Language / theme:
 
 ## Data (optional, redact personal details)

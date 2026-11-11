@@ -1,8 +1,12 @@
-# LifeOS
+# DAYS — Days Are Yours
 
 **Make Every Day Count.**
 
-LifeOS is a personal life assistant plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). It keeps retirement countdowns, statutory holidays, leave planning, a month calendar, off-work and payday countdowns, small daily joys, a wishlist and time capsules in one side-panel.
+![DAYS](assets/banner.svg)
+
+DAYS (Days Are Yours) is a personal life assistant plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). It keeps retirement countdowns, statutory holidays, leave planning, a month calendar, off-work and payday countdowns, small daily joys, a wishlist and time capsules in one side-panel.
+
+Repository: **Days-Are-Yours** · Package: `@local/days` · Version: 1.1.0
 
 All data stays in the browser (`localStorage`). No account, no API key, no telemetry, no network calls.
 
@@ -17,7 +21,9 @@ All data stays in the browser (`localStorage`). No account, no API key, no telem
 
 ## Install
 
-Install the folder as a local bundle for the current DSH profile (`plugin_manager install_bundle target=/absolute/path/to/lifeos`), then refresh the Harness window.
+Install the folder as a local bundle for the current DSH profile (`plugin_manager install_bundle target=/absolute/path/to/days`), then refresh the Harness window.
+
+> The storage key `lifeos/store` is intentionally unchanged by the LifeOS → DAYS rename, so upgrades keep existing data; JSON exported by 1.0 still imports.
 
 ## Test
 

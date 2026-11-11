@@ -1,5 +1,5 @@
 /**
- * LifeOS deterministic-core regression suite.
+ * DAYS deterministic-core regression suite.
  * Run: node tests/check.mjs
  */
 
@@ -20,7 +20,7 @@ globalThis.window = {
 await import('../client.js')
 
 const definition = globalThis.window.__ModuleLoader__.def
-if (!definition || definition.id !== '@local/lifeos') throw new Error('client module did not register')
+if (!definition || definition.id !== '@local/days') throw new Error('client module did not register')
 
 const ReactStub = {
   createElement: (...args) => ({ args }),
@@ -147,7 +147,10 @@ check('achievement unlocks', !!unlocked.achievements.countdown, true)
 
 /* --- RC: import / export round-trip -------------------------------- */
 const exported = api.buildExport(state)
-check('export envelope app', exported.app, 'LifeOS')
+check('export envelope app', exported.app, 'DAYS')
+check('storage key stays lifeos/store', api.STORE_KEY, 'lifeos/store')
+const legacyEnvelope = api.parseImport(JSON.stringify({ app: 'DAYS', schema: 1, data: state }))
+check('legacy DAYS export still imports', legacyEnvelope.profile.leaveQuota, state.profile.leaveQuota)
 check('export envelope schema', exported.schema, 1)
 const roundTrip = api.parseImport(JSON.stringify(exported))
 check('round-trip leaves', roundTrip.leaves.length, state.leaves.length)
@@ -158,7 +161,7 @@ let rejectedApp = false
 try { api.parseImport(JSON.stringify({ app: 'Other', schema: 1, data: state })) } catch (error) { rejectedApp = true }
 check('import rejects foreign app', rejectedApp, true)
 let rejectedVersion = false
-try { api.parseImport(JSON.stringify({ app: 'LifeOS', schema: 1, data: Object.assign({}, state, { v: 99 }) })) } catch (error) { rejectedVersion = true }
+try { api.parseImport(JSON.stringify({ app: 'DAYS', schema: 1, data: Object.assign({}, state, { v: 99 }) })) } catch (error) { rejectedVersion = true }
 check('import rejects other schema', rejectedVersion, true)
 let rejectedJson = false
 try { api.parseImport('{ broken') } catch (error) { rejectedJson = true }
@@ -243,4 +246,4 @@ if (failures.length) {
   for (const failure of failures) console.error(' - ' + failure)
   process.exit(1)
 }
-console.log('\nall LifeOS checks passed')
+console.log('\nall DAYS checks passed')

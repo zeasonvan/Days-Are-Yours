@@ -2,7 +2,7 @@
 
 ## Status: no tools registered in v1.0
 
-LifeOS v1.0 没有任何 Host Tool。原因不是设计缺失，而是**契约未核验**：
+DAYS v1.0 没有任何 Host Tool。原因不是设计缺失，而是**契约未核验**：
 
 - 本轮会话里 `cordis_inspect_query` 的对象型 `input` 被序列化成字符串，Host/Client 两端都返回 `"input" must be an object`，无法读取 `ctx.tools` 的运行时方法签名。
 - 仓库内 `@deepseek-ai/dsh-tools` 的类型产物在该桌面构建中不可读（`lib/types/index.d.ts` 不存在）。
@@ -12,15 +12,15 @@ LifeOS v1.0 没有任何 Host Tool。原因不是设计缺失，而是**契约�
 
 | Tool | 作用 | 确定性 |
 | --- | --- | --- |
-| `lifeos_overview` | 退休/假期/请假/目标概览 | 是 |
-| `lifeos_retirement` | 退休日期与剩余天数（读 profile，不写） | 是 |
-| `lifeos_holidays` | 指定年份的假期区间与补班日 | 是 |
-| `lifeos_leave_balance` | 年假额度/已用/剩余 | 是 |
-| `lifeos_plan_leave` | 拼假方案（预算、窗口、排序） | 是 |
-| `lifeos_create_countdown` | 新建自定义倒计时 | 写，需确认 |
-| `lifeos_create_leave` | 新建请假记录 | 写，需确认 |
-| `lifeos_goals` | 愿望清单读取/更新进度 | 读 + 写 |
-| `lifeos_summary` | 年度统计（确定性聚合） | 是 |
+| `days_overview` | 退休/假期/请假/目标概览 | 是 |
+| `days_retirement` | 退休日期与剩余天数（读 profile，不写） | 是 |
+| `days_holidays` | 指定年份的假期区间与补班日 | 是 |
+| `days_leave_balance` | 年假额度/已用/剩余 | 是 |
+| `days_plan_leave` | 拼假方案（预算、窗口、排序） | 是 |
+| `days_create_countdown` | 新建自定义倒计时 | 写，需确认 |
+| `days_create_leave` | 新建请假记录 | 写，需确认 |
+| `days_goals` | 愿望清单读取/更新进度 | 读 + 写 |
+| `days_summary` | 年度统计（确定性聚合） | 是 |
 
 ## 实现门槛
 

@@ -1,9 +1,9 @@
 {
-  "name": "@local/lifeos",
-  "version": "1.0.0",
+  "name": "@local/days",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
-  "description": "LifeOS — a playful personal life assistant for countdowns, holidays, leave planning and everyday joy.",
+  "description": "DAYS — a playful personal life assistant for countdowns, holidays, leave planning, memories and everyday joy.",
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",

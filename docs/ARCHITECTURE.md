@@ -2,7 +2,7 @@
 
 ```
 DSH Client (browser)
-└── @local/lifeos (client.js, 14 sections)
+└── @local/days (client.js, 14 sections)
     ├── 1  copy/i18n            COPY + t(key, params)
     ├── 2  dates                parse/format/diff/addMonths/breakdown
     ├── 3  retirement policy    RETIRE_RULES + retirementInfo(profile)

@@ -1,6 +1,8 @@
-# Existing features (countdown v0.5 → LifeOS v1.0)
+# Existing features (countdown v0.5 → DAYS v1.1)
 
-| 旧功能 | 旧实现 | LifeOS 迁移 |
+> 迁移清单写于项目名为 LifeOS 的时期；1.1.0 起项目名为 DAYS，功能与数据映射未变。
+
+| 旧功能 | 旧实现 | DAYS 迁移 |
 | --- | --- | --- |
 | 退休倒计时 | 出生日期+性别+弹性 → 政策推算 | 保留并移入「我的」+ 首页 hero |
 | 手动退休日期 | `profile.retireMode='manual'` | 保留，模式切换 |
@@ -10,7 +12,7 @@
 | 自定义放假 | `customs[]` | 迁移为请假记录（`leaves`），并新增年假口径 |
 | 语言开关 | 设置面板 | 迁入「我的」 |
 | 数据 | `countdown/store/v1` | 一次性迁移到 `lifeos/store`，旧 key 只读保留 |
-| 侧边栏入口 | 日历图标 | LifeOS 团子图标 |
+| 侧边栏入口 | 日历图标 | DAYS 团子图标 |
 | 节日当天回退 | 农历/清明推算 | 保留作为 2027 之后的回退 |
 
 ## 未迁移

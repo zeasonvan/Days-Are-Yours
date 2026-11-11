@@ -18,10 +18,10 @@
 1. 只在 `lifeos/store` 不存在时迁移一次；迁移后不再读取旧 key。
 2. 旧 key 原样保留，旧插件重新启用后可继续使用。
 3. 迁移后的数据立即通过 `sanitize()` 清洗，非法条目丢弃而不是崩溃。
-4. 导入 JSON 时校验 `app === 'LifeOS'`、`schema === 1`、`data.v === 1`。
+4. 导入 JSON 时校验 `app === 'DAYS'`、`schema === 1`、`data.v === 1`。
 
 ## 回退
 
-1. 停用 LifeOS bundle，启用 `@local/countdown`。
+1. 停用 DAYS bundle，启用 `@local/countdown`。
 2. 旧数据从未被改写，直接恢复。
-3. 若用户在 LifeOS 中新增了数据，先导出 JSON 留存。
+3. 若用户在 DAYS 中新增了数据，先导出 JSON 留存。

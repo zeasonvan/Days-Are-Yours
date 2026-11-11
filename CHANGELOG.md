@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0 — 2026-11-11
+
+品牌更名：LifeOS → **DAYS（Days Are Yours）**。功能与数据结构不变。
+
+- 产品名统一为 DAYS，完整名称 Days Are Yours，Slogan「Make Every Day Count.」/「每一天，都属于你。」
+- 插件包名 `@local/lifeos` → `@local/days`，插件 ID / bundle 行同步更新。
+- 侧边栏图标改为品牌标识：森林绿底 + 奶油白表盘 + 暖橙地平线；新增 `assets/logo.svg` 与 `assets/banner.svg`。
+- **本地存储 key `lifeos/store` 保持不变**，1.0 数据无需迁移。
+- 导出信封改为 `app: "DAYS"`，同时继续接受 `app: "LifeOS"` 的旧文件。
+- README、README_EN、docs、Issue/PR 模板、LICENSE 同步更名；历史事项保留「曾用名 LifeOS」说明。
+
 ## 1.0.0-rc.1 — 2026-11-11
 
 第二轮验收（RC）修复与体验优化，数据结构与存储 key 未变。
@@ -42,7 +53,7 @@
 
 ## 1.0.0 — 2026-11-11
 
-首个 LifeOS 版本，由 `countdown` 插件升级重构。
+首个版本（发布时名为 LifeOS，1.1.0 起更名为 DAYS），由 `countdown` 插件升级重构。
 
 ### Added
 

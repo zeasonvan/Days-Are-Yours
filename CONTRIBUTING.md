@@ -1,19 +1,19 @@
 # Contributing
 
-Thanks for helping. LifeOS is a small, dependency-free client plugin.
+Thanks for helping. DAYS is a small, dependency-free client plugin.
 
 ## Development
 
 ```bash
 git clone <repo>
-cd lifeos
+cd days
 node tests/check.mjs
 ```
 
 Then install as a local bundle in a DSH profile:
 
 ```
-plugin_manager install_bundle target=/absolute/path/to/lifeos
+plugin_manager install_bundle target=/absolute/path/to/days
 ```
 
 Refresh the Harness window to see changes — client bundles are loaded per page load.

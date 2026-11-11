@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" width="1200" height="320">
+  <rect width="1200" height="320" rx="0" fill="#F5F0E6"/>
+  <circle cx="150" cy="160" r="92" fill="#DDE8D8"/>
+  <circle cx="150" cy="150" r="62" fill="#354B43"/>
+  <circle cx="150" cy="150" r="48" fill="#F5F0E6"/>
+  <path d="M150 122v30l19 12" stroke="#354B43" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M78 244h144" stroke="#E8B88F" stroke-width="10" stroke-linecap="round"/>
+  <text x="330" y="168" font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', sans-serif" font-size="132" font-weight="700" letter-spacing="-4" fill="#354B43">DAYS</text>
+  <text x="336" y="226" font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', sans-serif" font-size="30" fill="#5C6B63">Days Are Yours · Make Every Day Count.</text>
+</svg>

@@ -1,4 +1,6 @@
-# Technical audit — countdown plugin (pre-LifeOS)
+# Technical audit — countdown plugin (pre-DAYS)
+
+> 历史说明：本审计写于项目名为 **LifeOS** 的时期（2026-11-11）。项目在 1.1.0 更名 **DAYS（Days Are Yours）**，下文机构名与结论保持当时的真实记录。
 
 Date: 2026-11-11 · Target: `default-workspace/countdown` (backed up to `_archive/countdown-20261111-085156`)
 
@@ -27,12 +29,12 @@ Date: 2026-11-11 · Target: `default-workspace/countdown` (backed up to `_archiv
 
 | 级别 | 缺陷 | 处理 |
 | --- | --- | --- |
-| 高 | 日期上限判断方向写反（`diffDays(max, parsed) < 0`），所有过去的生日都被拒绝 | 重写为 `isAllowedDate`，LifeOS 用同样的方向并测试 |
+| 高 | 日期上限判断方向写反（`diffDays(max, parsed) < 0`），所有过去的生日都被拒绝 | 重写为 `isAllowedDate`，DAYS 用同样的方向并测试 |
 | 中 | 原生 `<input type="date">` 跟随浏览器 en-US，显示 `MM/DD/YYYY` | 改用本地化文本日期框 |
 | 中 | 曾注册 `settings.section`，但该 Harness 版本的设置面板不呈现自定义分区 | 移除，改为面板内设置 |
 | 中 | 曾注册 `conversation.composer.dock` 常驻条 | 按用户要求移除 |
-| 低 | 单文件 1193 行，业务/渲染/样式混杂 | LifeOS 拆分区并抽核心函数 |
-| 低 | 无测试、无 CI、无 LICENSE | LifeOS 补齐 |
+| 低 | 单文件 1193 行，业务/渲染/样式混杂 | DAYS 拆分区并抽核心函数 |
+| 低 | 无测试、无 CI、无 LICENSE | DAYS 补齐 |
 
 ## 风险
 

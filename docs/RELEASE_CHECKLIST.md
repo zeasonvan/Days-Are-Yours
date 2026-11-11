@@ -1,6 +1,6 @@
-# Release checklist — v1.0.0 RC
+# Release checklist — v1.1.0 (DAYS)
 
-Date: 2026-11-11 · Bundle: `@local/lifeos@1.0.0` · Installed: yes (`application: applied`)
+Date: 2026-11-11 · Bundle: `@local/days@1.1.0` · Installed: yes (`application: applied`)
 
 ## Functional
 

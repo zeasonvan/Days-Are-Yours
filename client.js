@@ -1,23 +1,25 @@
 /**
- * LifeOS client half — make every day count.
+ * DAYS (Days Are Yours) client half — make every day count.
  *
- * One panel ("main" key = lifeos) reached from the sidebar glyph, with four
- * tabs: Home, Calendar, Fun and Me. All state is local-first and lives in
- * localStorage under `lifeos/store`; the legacy `countdown/store/v1` payload is
- * migrated once and never modified.
+ * One panel ("main" key = days) reached from the sidebar glyph, with four tabs:
+ * Home, Calendar, Fun and Me. All state is local-first. The storage key keeps
+ * its historical `lifeos/store` name so the 1.0 data of every user stays
+ * readable after the rename; `countdown/store/v1` is migrated once and never
+ * modified.
  *
  * Sections below: copy, dates, retirement policy, holiday data, store,
  * engines, views, styles, registration.
  */
 
 window.__ModuleLoader__.load({
-  id: '@local/lifeos',
+  id: '@local/days',
   factory(require) {
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef } = React
 
-    const PANEL_ID = 'lifeos'
+    const PANEL_ID = 'days'
+    // Deliberately unchanged across the brand rename: existing local data must survive.
     const STORE_KEY = 'lifeos/store'
     const LEGACY_KEY = 'countdown/store/v1'
     const SCHEMA = 1
@@ -30,8 +32,8 @@ window.__ModuleLoader__.load({
     let LANG = 'zh'
 
     const COPY = {
-      appName: 'LifeOS|LifeOS',
-      slogan: '让每一天都有值得期待的事情。|Make Every Day Count.',
+      appName: 'DAYS|DAYS',
+      slogan: '每一天，都属于你。|Make Every Day Count.',
       tabHome: '首页|Home',
       tabCalendar: '日历|Calendar',
       tabFun: '趣味|Fun',
@@ -177,10 +179,10 @@ window.__ModuleLoader__.load({
       errRange: '结束日期不能早于开始日期|End date cannot be before start',
       errBudget: '年假天数需要大于 0|Budget must be greater than 0',
       errImport: '文件格式不正确|Unsupported file',
-      confirmReset: '将清空这台设备上的 LifeOS 数据，确定吗？|This clears LifeOS data on this device. Continue?',
+      confirmReset: '将清空这台设备上的 DAYS 数据，确定吗？|This clears DAYS data on this device. Continue?',
       muted: '已过期|Past',
       passed: '已过 {n} 天|{n} days ago',
-      confirmImport: '导入会替换当前全部 LifeOS 数据，先导出备份了吗？继续？|Importing replaces all LifeOS data on this device. Continue?',
+      confirmImport: '导入会替换当前全部 DAYS 数据，先导出备份了吗？继续？|Importing replaces all DAYS data on this device. Continue?',
       retireDateManual: '指定退休日期|Retirement date (manual)',
       noYearData: '这一年的放假安排还没有收录|No holiday data for this year yet',
       dataNotice: '2025–2027 数据来自国务院公告的放假安排；最新年份请以官方最终安排为准。|2025–2027 data mirrors State Council notices; the newest year may still change.',
@@ -597,7 +599,7 @@ window.__ModuleLoader__.load({
       })
     }
 
-    function useLifeOS() {
+    function useDaysState() {
       const [, bump] = useState(0)
       useEffect(() => subscribe(() => bump((value) => value + 1)), [])
       setLang(currentState.settings.lang)
@@ -609,13 +611,16 @@ window.__ModuleLoader__.load({
     const patchSettings = (partial) => patch({ settings: Object.assign({}, currentState.settings, partial) })
     const bumpStat = (key) => patch({ stats: Object.assign({}, currentState.stats, { [key]: currentState.stats[key] + 1 }) })
 
+    const IMPORT_APPS = ['DAYS', 'LifeOS']
+
     function buildExport(state) {
-      return { app: 'LifeOS', schema: SCHEMA, exportedAt: new Date().toISOString(), data: state }
+      return { app: 'DAYS', schema: SCHEMA, exportedAt: new Date().toISOString(), data: state }
     }
 
     function parseImport(text) {
       const parsed = JSON.parse(text)
-      if (!parsed || parsed.app !== 'LifeOS' || !parsed.data || parsed.data.v !== SCHEMA) throw new Error('bad-file')
+      // 'LifeOS' is the 1.0 export envelope; keep accepting those files.
+      if (!parsed || !IMPORT_APPS.includes(parsed.app) || !parsed.data || parsed.data.v !== SCHEMA) throw new Error('bad-file')
       return sanitize(parsed.data)
     }
 
@@ -625,7 +630,7 @@ window.__ModuleLoader__.load({
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
       anchor.href = url
-      anchor.download = 'lifeos-' + toISO(new Date()) + '.json'
+      anchor.download = 'days-' + toISO(new Date()) + '.json'
       anchor.click()
       window.setTimeout(() => URL.revokeObjectURL(url), 1000)
       bumpStat('exports')
@@ -1618,8 +1623,8 @@ window.__ModuleLoader__.load({
           importError ? h('p', { className: 'lo-error' }, importError) : null,
           notice ? h('p', { className: 'lo-hint', 'aria-live': 'polite' }, notice) : null),
         h(Card, { title: t('about') },
-          h('p', { className: 'lo-hint' }, 'LifeOS · ' + t('slogan')),
-          h('p', { className: 'lo-hint' }, t('version') + ' 1.0.0 · MIT License')))
+          h('p', { className: 'lo-hint' }, 'DAYS — Days Are Yours · ' + t('slogan')),
+          h('p', { className: 'lo-hint' }, t('version') + ' 1.1.0 · MIT License')))
     }
 
     /* ------------------------------------------------------------------ *
@@ -1657,7 +1662,7 @@ window.__ModuleLoader__.load({
     }
 
     function App() {
-      const state = useLifeOS()
+      const state = useDaysState()
       const now = useNow(30000)
       const [tab, setTab] = useState(() => state.settings.tab || 'home')
       const [counted, setCounted] = useState(false)
@@ -1681,7 +1686,7 @@ window.__ModuleLoader__.load({
               h('div', { className: 'lo-brand' },
                 h(Mascot, { size: 36, mood: 'happy' }),
                 h('div', null,
-                  h('h1', { className: 'lo-title' }, 'LifeOS'),
+                  h('h1', { className: 'lo-title' }, 'DAYS'),
                   h('p', { className: 'lo-slogan' }, t('slogan')))),
               h('span', { className: 'lo-date' }, formatDate(startOfDay(now)))),
             tab === 'home'
@@ -1700,7 +1705,7 @@ window.__ModuleLoader__.load({
     }
 
     /* ------------------------------------------------------------------ *
-     * 13. Styles — host tokens for surfaces, LifeOS palette for accents
+     * 13. Styles — host tokens for surfaces, DAYS palette for accents
      * ------------------------------------------------------------------ */
 
     const CSS = `
@@ -1890,19 +1895,27 @@ window.__ModuleLoader__.load({
      * ------------------------------------------------------------------ */
 
     function PanelGlyph({ size, active }) {
-      const body = active ? '#F5F0E6' : 'currentColor'
-      const ink = active ? '#354B43' : 'currentColor'
+      const ink = 'currentColor'
       return h('svg', {
         width: size || 16, height: size || 16, viewBox: '0 0 24 24', 'aria-hidden': true,
         style: { display: 'block' },
       },
-      h('circle', { cx: 12, cy: 12, r: 8.2, fill: active ? body : 'none', stroke: ink, strokeWidth: active ? 0 : 1.7 }),
-      active
-        ? h('g', null,
-          h('circle', { cx: 9.6, cy: 11.2, r: 1.1, fill: ink }),
-          h('circle', { cx: 14.4, cy: 11.2, r: 1.1, fill: ink }),
-          h('path', { d: 'M9.6 14.4c.8.7 1.6 1 2.4 1s1.6-.3 2.4-1', stroke: ink, strokeWidth: 1.2, strokeLinecap: 'round', fill: 'none' }))
-        : null)
+      h('circle', {
+        cx: 12, cy: 12.2, r: 7.9,
+        fill: active ? '#F5F0E6' : 'none',
+        stroke: active ? 'none' : ink,
+        strokeWidth: active ? 0 : 1.7,
+      }),
+      h('path', {
+        d: 'M12 8.4v4.6l3 1.8',
+        stroke: active ? '#354B43' : ink,
+        strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', fill: 'none',
+      }),
+      h('path', {
+        d: 'M4.6 20.8h14.8',
+        stroke: active ? '#E8B88F' : ink,
+        strokeWidth: 1.6, strokeLinecap: 'round', opacity: active ? 1 : 0.75,
+      }))
     }
 
     return {
@@ -1911,7 +1924,7 @@ window.__ModuleLoader__.load({
       __internal: {
         defaultState, sanitize, migrateLegacy, parseISO, parseAnyDate, toISO, diffDays, addDays,
         breakdown, monthDay, retirementInfo, delayMonthsFor, addMonths, RETIRE_RULES,
-        buildExport, parseImport, holidayPeriods, HOLIDAY_DATA, dayInfo, isRestDay, nextOccurrence,
+        STORE_KEY, buildExport, parseImport, holidayPeriods, HOLIDAY_DATA, dayInfo, isRestDay, nextOccurrence,
         customCountdowns, lifeEntries, leaveDays, leaveWorkDays, leaveStats, planLeave, workStatus, nextPayday,
         dailyFun, petLevel, petMood, monthGrid, ACHIEVEMENTS, withAchievements, hashString,
       },
@@ -1926,7 +1939,7 @@ window.__ModuleLoader__.load({
           name: 'sidebar.panellist',
           id: PANEL_ID,
           order: 40,
-          label: () => 'LifeOS',
+          label: () => 'DAYS',
         }, PanelGlyph))
 
         ctx.slots.inject('main', () => ctx.slots.register({

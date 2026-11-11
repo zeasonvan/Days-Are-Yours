@@ -6,7 +6,7 @@ Open a private security advisory on GitHub, or contact the maintainer. Please do
 
 ## Scope
 
-LifeOS runs inside the Harness renderer and keeps data in `localStorage`. Relevant risks:
+DAYS runs inside the Harness renderer and keeps data in `localStorage`. Relevant risks:
 
 - XSS through imported JSON strings rendered into React text nodes (React escapes by default; never use `dangerouslySetInnerHTML`).
 - Data exfiltration — v1.0 performs no network calls; keep it that way unless explicitly documented.

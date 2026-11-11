@@ -1,9 +1,9 @@
 # Data model
 
-Storage key: `lifeos/store` (JSON). Legacy key `countdown/store/v1` is read once and never modified.
+Storage key: `lifeos/store` (JSON) — the name is historical and intentionally unchanged by the LifeOS → DAYS rename, so existing data keeps loading. Legacy key `countdown/store/v1` is read once and never modified.
 
 ```ts
-interface LifeOSState {
+interface DAYSState {
   v: 1
   profile: {
     name: string
@@ -47,4 +47,4 @@ interface LifeOSState {
 
 ## 导入/导出
 
-`exportData()` 输出 `{ app:'LifeOS', schema:1, exportedAt, data }`；`importData()` 校验 app/schema/`data.v` 后整体替换并清洗。导入前建议先导出备份。
+`exportData()` 输出 `{ app:'DAYS', schema:1, exportedAt, data }`；`parseImport()` 同时接受 `app:'LifeOS'`（1.0 导出）与 `app:'DAYS'`，校验 schema/`data.v` 后整体替换并清洗。导入前建议先导出备份。

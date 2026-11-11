@@ -1,4 +1,4 @@
-# Harness capabilities used by LifeOS
+# Harness capabilities used by DAYS
 
 Verification basis: installed desktop Harness (0.2.2-rc line), live `Slots`/`Theme` inspection, the shipped plugin-development skill, and the working local `zhiyong-orchestrator` bundle in the same profile.
 
@@ -7,8 +7,8 @@ Verification basis: installed desktop Harness (0.2.2-rc line), live `Slots`/`The
 | 能力 | 用法 |
 | --- | --- |
 | Client module loader | `window.__ModuleLoader__.load({ id, factory(require) })`，React 来自模块表 |
-| Slot `sidebar.panellist` | 注册 LifeOS 图标，`label` 支持函数 |
-| Slot `main` (keyed) | 注册 `key = 'lifeos'` 的整页 |
+| Slot `sidebar.panellist` | 注册 DAYS 图标，`label` 支持函数 |
+| Slot `main` (keyed) | 注册 `key = 'days'` 的整页 |
 | Client `slots` service | `ctx.slots.inject(key, () => ctx.slots.register(options, Component))` |
 | Theme tokens | `--dsw-alias-bg-base / bg-layer-1 / bg-layer-2 / border-l1 / border-l2 / label-primary / label-secondary / brand-primary / state-error-primary / state-warn-primary` |
 | Bundle + patch | `package.json` 的 `dsh.bundle.patch` + `cordis.patch.yml` 插入行 |
