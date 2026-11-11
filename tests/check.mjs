@@ -127,6 +127,8 @@ check('no payday configured', api.nextPayday({ salaryDay: '' }, today), null)
 /* --- fun, pet, month ------------------------------------------------ */
 const scores = api.funScores(state, new Date(2026, 10, 9, 10, 0), null)
 check('quote is deterministic', api.dailyQuote(today), api.dailyQuote(today))
+check('quote library is rich enough', api.QUOTES.length >= 35, true)
+check('upcoming holiday periods are never in the past', api.holidayPeriods(today).every((item) => item.active || item.days >= 0), true)
 check('fun scores stay in range', [scores.slack, scores.coffee, scores.mood].every((value) => value >= 0 && value <= 100), true)
 check('fun scores explain themselves', !!(scores.reasons.slack && scores.reasons.coffee && scores.reasons.mood), true)
 const weekendScores = api.funScores(state, new Date(2026, 10, 7, 10, 0), null)

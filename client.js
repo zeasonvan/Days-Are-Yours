@@ -90,6 +90,8 @@ window.__ModuleLoader__.load({
       holidaysTitle: '法定假期|Public holidays',
       showHolidays: '显示法定假期|Show public holidays',
       allHolidays: '全年假期|This year',
+      upcomingHolidays: '即将到来的假期|Upcoming holidays',
+      noUpcomingHolidays: '暂时没有即将到来的假期|No upcoming holidays right now',
       yearsData: '数据覆盖 {range}|Data covers {range}',
 
       leaveTitle: '年假与请假|Annual leave',
@@ -110,8 +112,6 @@ window.__ModuleLoader__.load({
       pickDates: '选择日期|Pick dates',
       paydayLabel: '发薪日|Payday',
       birthdayLabel: '生日|Birthday',
-      legendBirthday: '生日|Birthday',
-      legendPayday: '发薪|Payday',
       paydayShort: '薪|P',
       birthdayShort: '生|B',
       funDesc: '下班与发薪倒计时、每日小确幸、时光团子和成就都在这里。|Off-work and payday countdowns, daily joys, the blob and achievements.',
@@ -119,7 +119,6 @@ window.__ModuleLoader__.load({
       weatherSetCity: '设置城市，查看天气|Set a city to see the weather',
       weatherLoading: '正在获取天气…|Fetching weather…',
       weatherError: '天气暂时不可用|Weather is unavailable right now',
-      weatherRefresh: '更新|Refresh',
       weatherUpdated: '{time} 更新|Updated {time}',
       weatherHighLow: '最高 {high}° / 最低 {low}°|H {high}° / L {low}°',
       weatherFeels: '体感 {temp}°|Feels {temp}°',
@@ -1019,6 +1018,32 @@ window.__ModuleLoader__.load({
       '攒下的不是年假，是值得期待的日子。',
       '人生是长跑，但可以先想想晚饭吃什么。',
       '把想做的事写下来，未来就有了形状。',
+      '今天也辛苦了，记得喝口水。',
+      '慢一点没关系，方向对就好。',
+      '周一的早上，先允许自己发五分钟呆。',
+      '假期的意义，是让平常的日子有盼头。',
+      '不必追赶别人，你有自己的时区。',
+      '把窗户打开一点，风会带来新的消息。',
+      '今天的太阳，也在按时上班。',
+      '发呆不是浪费时间，是给大脑留白。',
+      '如果今天很难，那就先过完今天。',
+      '年假不是偷懒，是提前预约的快乐。',
+      '下班路上的晚霞，是免费的奖励。',
+      '买一杯喜欢的饮料，理由可以很简单。',
+      '把待办清单划掉一项，就值得高兴一下。',
+      '你不需要向任何人证明今天过得很好。',
+      '周末的计划可以只是躺着。',
+      '想念一个人的时候，就给他发条消息。',
+      '生活不是项目管理，允许临时改动。',
+      '今天适合做一件小事，然后夸夸自己。',
+      '把手机放下十分钟，世界不会塌。',
+      '所有的假期，都是从上班第一天开始攒的。',
+      '愿你的加班都有意义，愿你的下班都很准时。',
+      '记得给自己留一点没有名字的时间。',
+      '日历翻过去的那一页，也曾经是未来。',
+      '如果可以，今天早点睡。',
+      '平凡的一天，也值得被认真记录。',
+      '你已经做得很好了，真的。',
     ]
 
     function dailyQuote(date) {
@@ -1302,7 +1327,7 @@ window.__ModuleLoader__.load({
         h('path', { d: 'M10 25l-1.5 5M16 25l-1.5 5M22 25l-1.5 5', stroke: ink, strokeWidth: 1.6, strokeLinecap: 'round' }))
     }
 
-    function WeatherBar({ location, weather, weatherState, onRefresh, onSetupCity }) {
+    function WeatherBar({ location, weather, weatherState, onSetupCity }) {
       if (!location) {
         return h('section', { className: 'lo-weather' },
           h(WeatherIcon, { kind: 'partly', size: 30 }),
@@ -1316,8 +1341,7 @@ window.__ModuleLoader__.load({
           h(WeatherIcon, { kind: 'partly', size: 30 }),
           h('div', { className: 'lo-weather-body' },
             h('span', { className: 'lo-weather-label' }, location.name || t('weatherTitle')),
-            h('span', { className: 'lo-weather-meta' }, weatherState === 'error' ? t('weatherError') : t('weatherLoading'))),
-          weatherState === 'error' ? h('button', { type: 'button', className: 'lo-link', onClick: onRefresh }, t('weatherRefresh')) : null)
+            h('span', { className: 'lo-weather-meta' }, weatherState === 'error' ? t('weatherError') : t('weatherLoading'))))
       }
       const kind = weatherKind(weather.code)
       return h('section', { className: 'lo-weather' },
@@ -1331,7 +1355,6 @@ window.__ModuleLoader__.load({
             + t('weatherHighLow', { high: Math.round(weather.high), low: Math.round(weather.low) })
             + ' · ' + t('weatherFeels', { temp: Math.round(weather.apparent) }))),
         h('div', { className: 'lo-weather-side' },
-          h('button', { type: 'button', className: 'lo-link', onClick: onRefresh }, t('weatherRefresh')),
           h('span', { className: 'lo-weather-updated' }, t('weatherUpdated', { time: clockTime(weather.updatedAt) }))))
     }
 
@@ -1475,7 +1498,7 @@ window.__ModuleLoader__.load({
           })))
     }
 
-    function HomeView({ state, now, onTab, weather, weatherState, onRefreshWeather }) {
+    function HomeView({ state, now, onTab, weather, weatherState }) {
       const today = startOfDay(now)
       const holidays = state.settings.showHolidays ? holidayPeriods(today) : []
       const featured = holidays.length ? holidays[0] : null
@@ -1486,7 +1509,6 @@ window.__ModuleLoader__.load({
           location: state.profile.location,
           weather,
           weatherState,
-          onRefresh: onRefreshWeather,
           onSetupCity: () => onTab('me'),
         }),
         h('div', { className: cx('lo-hero-row', !featured && 'lo-hero-single') },
@@ -1582,7 +1604,6 @@ window.__ModuleLoader__.load({
       const [selected, setSelected] = useState(() => startOfDay(now))
       const [draft, setDraft] = useState(null)
       const viewYear = cursor.getFullYear()
-      const rows = HOLIDAY_DATA[viewYear] || []
       const info = selected ? dayInfo(selected) : null
       const marks = selected ? dayMarks(selected, state.profile) : { birthday: false, payday: false }
       const selectedLeaves = selected
@@ -1630,9 +1651,7 @@ window.__ModuleLoader__.load({
         h('div', { className: 'lo-legend' },
           h('span', null, h('i', { className: 'lo-dot lo-dot-holiday' }), t('legendHoliday')),
           h('span', null, h('i', { className: 'lo-dot lo-dot-leave' }), t('legendLeave')),
-          h('span', null, h('i', { className: 'lo-dot lo-dot-work' }), t('legendMakeup')),
-          h('span', null, h('i', { className: 'lo-dot lo-dot-payday' }), t('legendPayday')),
-          h('span', null, h('i', { className: 'lo-dot lo-dot-birthday' }), t('legendBirthday')))),
+          h('span', null, h('i', { className: 'lo-dot lo-dot-work' }), t('legendMakeup')))),
         selected
           ? h(Card, { title: formatDate(selected) + ' · ' + weekdayName(selected) },
             info && info.name
@@ -1649,7 +1668,7 @@ window.__ModuleLoader__.load({
               h(Button, { onClick: () => startDraft(selected) }, t('addFromDay'))))
           : null,
         h(LeaveSection, { state, now, draft, setDraft, defaultDate: selected }),
-        h(YearHolidays, { year: viewYear, rows }),
+        h(UpcomingHolidays, { today: startOfDay(now) }),
         h(Planner, { state, now }))
     }
 
@@ -1744,24 +1763,19 @@ window.__ModuleLoader__.load({
         })))
     }
 
-    function YearHolidays({ year, rows }) {
-      if (!rows || !rows.length) {
-        return h(Card, { title: year + ' · ' + t('allHolidays') },
-          h('p', { className: 'lo-empty' }, t('noYearData')),
-          h('p', { className: 'lo-hint' }, t('dataNotice')))
-      }
-      return h(Card, { title: year + ' · ' + t('allHolidays') },
-        h('ul', { className: 'lo-list' }, rows.map((row, index) => {
-          const start = parseISO(row[1])
-          const end = parseISO(row[2])
-          const span = diffDays(start, end) + 1
-          return h('li', { key: index, className: 'lo-row' },
+    function UpcomingHolidays({ today }) {
+      const periods = holidayPeriods(today).slice(0, 6)
+      return h(Card, { title: t('upcomingHolidays') },
+        periods.length
+          ? h('ul', { className: 'lo-list' }, periods.map((entry) => h('li', { key: entry.id, className: 'lo-row' },
             h('div', { className: 'lo-row-main' },
-              h('span', { className: 'lo-row-name' }, row[0]),
-              h('span', { className: 'lo-row-meta' }, t('holidayRange', { start: monthDay(start), end: monthDay(end) })
-                + (row[3].length ? ' · ' + t('makeupDays', { dates: row[3].map((day) => monthDay(parseISO(day))).join('、') }) : ''))),
-            h('span', { className: 'lo-row-days' }, span, h('em', null, t('days'))))
-        })),
+              h('span', { className: 'lo-row-name' }, entry.name,
+                entry.active ? h('em', { className: 'lo-chip' }, t('onHoliday')) : null),
+              h('span', { className: 'lo-row-meta' },
+                t('holidayRange', { start: formatDate(entry.date), end: formatDate(entry.end) })
+                + (entry.work.length ? ' · ' + t('makeupDays', { dates: entry.work.map((date) => monthDay(date)).join('、') }) : ''))),
+            h('span', { className: 'lo-row-days' }, entry.active ? entry.remaining : entry.days, h('em', null, t('days'))))))
+          : h('p', { className: 'lo-empty' }, t('noUpcomingHolidays')),
         h('p', { className: 'lo-hint' }, t('dataNotice')))
     }
 
@@ -1820,9 +1834,9 @@ window.__ModuleLoader__.load({
      * ------------------------------------------------------------------ */
 
     const PET_ACTIONS = [
-      { id: 'pat', label: 'petPat', xp: 5, line: 'petPatLine' },
-      { id: 'feed', label: 'petFeed', xp: 8, line: 'petFeedLine' },
-      { id: 'play', label: 'petPlay', xp: 10, line: 'petPlayLine' },
+      { id: 'pat', label: 'petPat', xp: 5, line: 'petPatLine', mood: 'happy' },
+      { id: 'feed', label: 'petFeed', xp: 8, line: 'petFeedLine', mood: 'cozy' },
+      { id: 'play', label: 'petPlay', xp: 10, line: 'petPlayLine', mood: 'celebrate' },
     ]
 
     function FunView({ state, now, weather }) {
@@ -1833,6 +1847,7 @@ window.__ModuleLoader__.load({
       const into = state.pet.xp % 50
       const today = toISO(startOfDay(now))
       const [reaction, setReaction] = useState(null)
+      const [bump, setBump] = useState(0)
 
       const interact = (action) => {
         const before = petLevel(state.pet.xp)
@@ -1840,8 +1855,9 @@ window.__ModuleLoader__.load({
         const after = petLevel(nextXp)
         patch({ pet: { xp: nextXp, lastPet: today } })
         const text = after > before ? t('petLevelUp', { n: after }) : t(action.line)
-        setReaction({ mood: after > before ? 'celebrate' : 'happy', text })
-        window.setTimeout(() => setReaction(null), 2200)
+        setReaction({ mood: after > before ? 'celebrate' : action.mood, text, xp: action.xp, key: bump + 1 })
+        setBump(bump + 1)
+        window.setTimeout(() => setReaction(null), 2000)
       }
 
       const workValue = work.state === 'working'
@@ -1868,12 +1884,22 @@ window.__ModuleLoader__.load({
             h(Meter, { label: t('moodIndex'), value: fun.mood, reason: fun.reasons.mood })),
           h('p', { className: 'lo-hint' }, t('forFun'))),
         h('section', { className: 'lo-pet' },
-          h('div', { className: 'lo-pet-art' }, h(Mascot, { size: 96, mood: reaction ? reaction.mood : petMood(now) })),
+          h('button', {
+            type: 'button',
+            className: 'lo-pet-hit',
+            'aria-label': t('petAction'),
+            onClick: () => interact(PET_ACTIONS[0]),
+          },
+          h('span', {
+            key: reaction ? reaction.key : 'idle',
+            className: 'lo-pet-art' + (reaction ? ' lo-pet-bounce' : ''),
+          }, h(Mascot, { size: 96, mood: reaction ? reaction.mood : petMood(now) })),
+          reaction ? h('span', { className: 'lo-pet-xp', key: 'xp-' + reaction.key }, '+' + reaction.xp) : null),
           h('div', { className: 'lo-pet-body' },
             h('p', { className: 'lo-pet-name' }, t('petTitle')),
             h('p', { className: 'lo-pet-level' }, t('petLevel', { n: level }) + ' · ' + t('petXp', { n: state.pet.xp })),
             h('div', { className: 'lo-progress lo-progress-sm' }, h('i', { style: { width: Math.round((into / 50) * 100) + '%' } })),
-            h('p', { className: 'lo-pet-message' }, reaction ? reaction.text : t('petHint')),
+            h('p', { className: 'lo-pet-message' + (reaction ? ' lo-pet-message-active' : '') }, reaction ? reaction.text : t('petHint')),
             h('div', { className: 'lo-pet-actions' }, PET_ACTIONS.map((action) => h('button', {
               key: action.id,
               type: 'button',
@@ -2119,7 +2145,7 @@ window.__ModuleLoader__.load({
           notice ? h('p', { className: 'lo-hint', 'aria-live': 'polite' }, notice) : null),
         h(Card, { title: t('about') },
           h('p', { className: 'lo-hint' }, 'DAYS — Days Are Yours · ' + t('slogan')),
-          h('p', { className: 'lo-hint' }, t('version') + ' 1.3.0 · MIT License')))
+          h('p', { className: 'lo-hint' }, t('version') + ' 1.4.0 · MIT License')))
     }
 
     /* ------------------------------------------------------------------ *
@@ -2174,7 +2200,7 @@ window.__ModuleLoader__.load({
       }, [counted])
 
       useEffect(() => {
-        const timer = window.setInterval(() => setWeatherTick((value) => value + 1), 30 * 60 * 1000)
+        const timer = window.setInterval(() => setWeatherTick((value) => value + 1), 10 * 60 * 1000)
         return () => window.clearInterval(timer)
       }, [])
 
@@ -2234,7 +2260,6 @@ window.__ModuleLoader__.load({
                 onTab: switchTab,
                 weather,
                 weatherState,
-                onRefreshWeather: () => setWeatherTick((value) => value + 1),
               })
               : tab === 'calendar'
                 ? h(CalendarView, { state, now })
@@ -2408,8 +2433,6 @@ window.__ModuleLoader__.load({
 .lo-dot-holiday{background:var(--lo-peach)}
 .lo-dot-leave{background:var(--dsw-alias-brand-primary)}
 .lo-dot-work{background:var(--dsw-alias-label-secondary)}
-.lo-dot-payday{background:var(--lo-sand)}
-.lo-dot-birthday{background:var(--lo-sage);border:1px solid var(--lo-forest)}
 .lo-month-nav{display:flex;gap:12px;flex-wrap:wrap}
 .lo-duo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .lo-tile{display:flex;flex-direction:column;gap:4px;padding:18px 20px;border:1px solid var(--dsw-alias-border-l1);border-radius:16px;background:var(--dsw-alias-bg-base)}
@@ -2420,8 +2443,17 @@ window.__ModuleLoader__.load({
 .lo-meter{display:flex;flex-direction:column;gap:6px}
 .lo-meter-head{display:flex;justify-content:space-between;font-size:12px;color:var(--dsw-alias-label-secondary)}
 .lo-meter-head b{color:var(--dsw-alias-label-primary);font-variant-numeric:tabular-nums}
-.lo-pet{display:flex;align-items:center;gap:18px;padding:20px 22px;border:1px solid var(--dsw-alias-border-l1);border-radius:18px;background:var(--dsw-alias-bg-base)}
-.lo-pet-art{flex:none}
+.lo-pet{position:relative;display:flex;align-items:center;gap:18px;padding:20px 22px;border:1px solid var(--dsw-alias-border-l1);border-radius:18px;background:var(--dsw-alias-bg-base)}
+.lo-pet-hit{position:relative;display:block;flex:none;padding:0;border:0;background:none;cursor:pointer;border-radius:18px}
+.lo-pet-hit:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:4px}
+.lo-pet-art{display:block;transition:transform .18s ease}
+.lo-pet-hit:hover .lo-pet-art{transform:translateY(-2px) scale(1.04)}
+.lo-pet-bounce{animation:lo-pet-pop .62s cubic-bezier(.34,1.56,.64,1)}
+@keyframes lo-pet-pop{0%{transform:scale(1)}30%{transform:scale(1.14) rotate(-4deg)}60%{transform:scale(.95) rotate(3deg)}100%{transform:scale(1) rotate(0)}}
+.lo-pet-xp{position:absolute;left:50%;top:-2px;transform:translateX(-50%);font-size:12px;font-weight:600;color:var(--lo-forest);pointer-events:none;animation:lo-pet-float .9s ease-out forwards}
+@keyframes lo-pet-float{0%{opacity:0;transform:translate(-50%,6px)}20%{opacity:1}100%{opacity:0;transform:translate(-50%,-16px)}}
+.lo-pet-message-active{color:var(--dsw-alias-label-primary)}
+@media (prefers-reduced-motion: reduce){.lo-pet-bounce,.lo-pet-xp{animation:none}}
 .lo-pet-body{flex:1;min-width:0}
 .lo-pet-name{margin:0;font-size:15px;font-weight:600}
 .lo-pet-level{margin:2px 0 0;font-size:12px;color:var(--dsw-alias-label-secondary)}
@@ -2504,7 +2536,7 @@ window.__ModuleLoader__.load({
         breakdown, monthDay, retirementInfo, delayMonthsFor, addMonths, RETIRE_RULES,
         STORE_KEY, loadState, buildExport, parseImport, holidayPeriods, HOLIDAY_DATA, dayInfo, isRestDay, nextOccurrence,
         customCountdowns, lifeEntries, leaveDays, leaveWorkDays, leaveStats, dayMarks, planLeave,
-        weatherKind, weatherLabel, isWeatherFresh, sameLocation, funScores, dailyQuote, workStatus, nextPayday,
+        weatherKind, weatherLabel, isWeatherFresh, sameLocation, funScores, dailyQuote, QUOTES, workStatus, nextPayday,
         petLevel, petMood, monthGrid, ACHIEVEMENTS, withAchievements, hashString,
       },
       apply(ctx) {
